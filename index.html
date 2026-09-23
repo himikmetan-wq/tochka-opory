@@ -15,6 +15,12 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Точка опоры">
 <style>
+.account-bar{display:flex;align-items:center;gap:8px;justify-content:flex-end;max-width:100%;font-size:12px}
+.account-bar span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:160px}
+.account-bar button{border:1px solid var(--border);background:var(--surface);color:var(--text);border-radius:8px;padding:6px;cursor:pointer}
+.login-card{max-width:420px;margin:12vh auto 0;padding:28px;text-align:center;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius)}
+.login-card p{color:var(--text-muted);line-height:1.5}
+.login-card button{margin-top:12px;padding:12px 18px;border:0;border-radius:10px;background:var(--accent);color:white;font:inherit;cursor:pointer}
 :root{
   --bg:#F6F3EC;
   --surface:#FFFFFF;
@@ -246,7 +252,7 @@ a{color:var(--accent);}
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M15.5 8.5 13 13l-4.5 2.5L11 11l4.5-2.5Z"/></svg>
       <span>Точка опоры</span>
     </div>
-    <div class="today" id="header-date"></div>
+    <div class="account-bar"><div class="today" id="header-date"></div><div id="account-control"></div></div>
   </header>
 
   <main class="app-main" id="main-content"></main>
@@ -280,6 +286,7 @@ a{color:var(--accent);}
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-app.js";
+import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-auth.js";
 import {
   getFirestore, doc, getDoc, setDoc, updateDoc, deleteDoc,
   collection, addDoc, getDocs, query, where, orderBy, limit
@@ -345,14 +352,8 @@ function toast(msg){
   setTimeout(function(){ el.classList.remove('show'); setTimeout(function(){ el.remove(); },300); },2600);
 }
 
-/* ---------- Firebase Firestore-backed data layer ----------
-   Same tiny query surface the app uses (doc/collection, get/set/update/delete,
-   where/orderBy/limit/add) but backed by real Cloud Firestore, so data syncs
-   across every device instead of staying in one browser's localStorage.
-   All real documents live under a random, unlisted top-level path
-   (SECRET_PREFIX) that only this file and the Firestore security rules know,
-   so opportunistic scanners can't find or touch the data — see the rules
-   published on the tochka-opory Firebase project. */
+/* Firebase data: /users/{Firebase Auth uid}/{collection}/{document}.
+   Access isolation must also be enforced by firestore.rules. */
 var FIREBASE_CONFIG = {
   apiKey: "AIzaSyBEI3Cig3HQZzvWY7vELV3iAKn3temiszI",
   authDomain: "tochka-opory-2f30a.firebaseapp.com",
@@ -361,13 +362,32 @@ var FIREBASE_CONFIG = {
   messagingSenderId: "463727981974",
   appId: "1:463727981974:web:a201ad105cc2e51e7999b7"
 };
-var SECRET_PREFIX = 'app_1828f9714064928f0aab3d8b';
 var BACKUP_COLLECTIONS = ['journal','tasks','finance','budget'];
+// Set this to the owner's verified Google address before publishing.
+var LEGACY_OWNER_EMAIL = 'himikmetan@gmail.com';
+var LEGACY_PREFIX = 'app_1828f9714064928f0aab3d8b';
 var _fsApp = initializeApp(FIREBASE_CONFIG);
 var _fsDb = getFirestore(_fsApp);
+var _auth = getAuth(_fsApp);
+var activeUser = null;
 
-function _fsDocRef(coll, id){ return doc(_fsDb, SECRET_PREFIX, 'data', coll, id); }
-function _fsCollRef(coll){ return collection(_fsDb, SECRET_PREFIX, 'data', coll); }
+async function migrateLegacyData(user){
+  if(user.email !== LEGACY_OWNER_EMAIL || !user.emailVerified) return;
+  var marker = doc(_fsDb, 'users', user.uid);
+  if((await getDoc(marker)).exists()) return;
+  for(var i=0;i<BACKUP_COLLECTIONS.length;i++){
+    var coll = BACKUP_COLLECTIONS[i];
+    var oldDocs = await getDocs(collection(_fsDb, LEGACY_PREFIX, 'data', coll));
+    for(var j=0;j<oldDocs.docs.length;j++){
+      var old = oldDocs.docs[j];
+      await setDoc(doc(_fsDb, 'users', user.uid, coll, old.id), old.data());
+    }
+  }
+  await setDoc(marker, {legacyMigratedAt:nowISO()});
+}
+
+function _fsDocRef(coll, id){ return doc(_fsDb, 'users', activeUser.uid, coll, id); }
+function _fsCollRef(coll){ return collection(_fsDb, 'users', activeUser.uid, coll); }
 
 function localDoc(path){
   var parts = path.split('/'); var coll = parts[0], id = parts[1];
@@ -1228,10 +1248,34 @@ document.getElementById('main-content').addEventListener('submit', function(e){
 });
 
 /* ---------- boot ---------- */
+function showLogin(){
+  document.getElementById('account-control').textContent = '';
+  document.getElementById('tabbar').innerHTML = '';
+  document.getElementById('main-content').innerHTML = '<div class="login-card"><h1>Точка опоры</h1><p>Войдите через Google, чтобы ваши записи, задачи и финансы сохранялись только в вашем аккаунте.</p><button id="google-login">Войти через Google</button></div>';
+  document.getElementById('google-login').onclick = async function(){
+    try { await signInWithPopup(_auth, new GoogleAuthProvider()); }
+    catch(e){ console.error(e); toast(e.code==='auth/unauthorized-domain'?'Добавьте домен сайта в Firebase Authentication':'Не удалось войти через Google'); }
+  };
+}
 function boot(){
   renderHeaderDate();
-  renderTabbar();
-  switchTab('summary');
+  document.getElementById('main-content').innerHTML = '<div class="card empty-state">Проверяем вход…</div>';
+  onAuthStateChanged(_auth, async function(user){
+    activeUser = user;
+    if(!user){ showLogin(); return; }
+    document.getElementById('main-content').innerHTML = '<div class="card empty-state">Проверяем и переносим записи…</div>';
+    try { await migrateLegacyData(user); }
+    catch(e){ console.error(e); document.getElementById('main-content').textContent = 'Не удалось перенести прежние записи. Проверьте правила Firebase и обновите страницу.'; return; }
+    if(_auth.currentUser?.uid !== user.uid) return;
+    var control = document.getElementById('account-control');
+    control.replaceChildren();
+    var name = document.createElement('span'); name.textContent = user.displayName || user.email || 'Аккаунт';
+    var logout = document.createElement('button'); logout.textContent = 'Выйти';
+    logout.onclick = function(){ signOut(_auth).catch(function(e){ console.error(e); toast('Не удалось выйти'); }); };
+    control.append(name, logout);
+    renderTabbar();
+    switchTab('summary');
+  }, function(e){ console.error(e); document.getElementById('main-content').textContent='Ошибка входа. Обновите страницу.'; });
 }
 boot();
 

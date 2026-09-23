@@ -1,0 +1,25 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+    match /users/{userId}/{collectionId}/{documentId} {
+      allow read, write: if request.auth != null
+        && request.auth.uid == userId
+        && collectionId in ['journal', 'tasks', 'finance', 'budget'];
+    }
+    // Owner-only, read-only access for automatic one-time migration.
+    match /app_1828f9714064928f0aab3d8b/data/{collectionId}/{documentId} {
+      allow read: if request.auth != null
+        && request.auth.token.email_verified == true
+        && request.auth.token.email == 'himikmetan@gmail.com'
+        && collectionId in ['journal', 'tasks', 'finance', 'budget'];
+      allow write: if false;
+    }
+    // The previous shared collection is deliberately inaccessible.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
