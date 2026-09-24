@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="ru">
+<html lang="ru" data-theme="light">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -190,6 +190,14 @@ textarea.input{resize:vertical;min-height:44px;}
 .coach-text{font-family:'Unbounded',sans-serif;font-size:16px;line-height:1.4;font-weight:600;min-height:66px;opacity:1;transition:opacity .18s ease;}
 .coach-text.fade{opacity:0;}
 .coach-controls{display:flex;align-items:center;gap:10px;margin-top:12px;}
+.theme-row{display:flex;align-items:center;justify-content:space-between;gap:12px;}
+.theme-switch{position:relative;display:inline-flex;align-items:center;gap:9px;cursor:pointer;font-size:12px;color:var(--text-muted);white-space:nowrap;}
+.theme-switch input{position:absolute;width:1px;height:1px;opacity:0;}
+.theme-slider{width:42px;height:24px;border-radius:999px;background:var(--border);position:relative;transition:background .2s;flex:none;}
+.theme-slider::before{content:"";position:absolute;width:18px;height:18px;border-radius:50%;left:3px;top:3px;background:var(--surface);box-shadow:0 1px 3px rgba(0,0,0,.2);transition:transform .2s;}
+.theme-switch input:checked + .theme-slider{background:var(--accent);}
+.theme-switch input:checked + .theme-slider::before{transform:translateX(18px);}
+.theme-switch input:focus-visible + .theme-slider{outline:2px solid var(--accent);outline-offset:3px;}
 
 .abandon-form{display:flex;flex-direction:column;gap:6px;padding:8px 2px;border-bottom:1px solid var(--border);}
 .abandon-form .task-text-preview{font-size:13px;color:var(--text-muted);}
@@ -208,14 +216,22 @@ textarea.input{resize:vertical;min-height:44px;}
 .task-actions{display:flex;align-items:center;flex:none;}
 .inline-edit{width:100%;display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:9px 0;border-bottom:1px solid var(--border);}
 .inline-edit .input{flex:1 1 160px;}
-.progress-track{height:8px;background:var(--surface-2);border-radius:9px;overflow:hidden;margin:10px 0 5px;}
-.progress-fill{height:100%;background:var(--accent);transition:width .2s;}
+.progress-track{display:flex;gap:3px;height:8px;margin:10px 0 5px;}
+.progress-segment{flex:1;min-width:0;border-radius:5px;background:var(--surface-2);transition:background .2s;}
+.progress-segment.done{background:var(--accent);}
 .tracker-item{padding:12px 0;border-top:1px solid var(--border);}
 .tracker-item:first-of-type{border-top:0;}
 .tracker-subtask{display:flex;align-items:center;gap:8px;padding:7px 0 7px 10px;}
 .tracker-subtask .task-text{font-size:13.5px;}
 .note-text{white-space:pre-wrap;overflow-wrap:anywhere;}
 .recording{background:var(--negative-soft);color:var(--negative);}
+.mic-btn{width:42px;height:38px;justify-content:center;padding:4px;background:#fff;color:#22282a;border:1px solid var(--border);border-radius:10px;}
+.mic-btn:hover{border-color:var(--accent);}
+.mic-icon{display:block;width:20px;height:24px;background-image:url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADcAAAAsCAIAAABOqLdJAAADIUlEQVR4AeyXSUhqURjHXxZNNLwGKIgKGqBNEQ20iAgKorZNREUUFMQrgqJ5IKK5oAjalC5EF4IguFBEcNiIuNKFKOJCEFFEEXWjqOh7fxLu+nH9QKJ7+Dh893juOT/+5zvfd+X9/Q6N9+s7NI6S7pQ4LTkt6RSgW4mLS05LOgXoVuLiktOSTgG6lbi45LSkU4BupR8Zl6lUSq/Xi0Sij48PuVzu8/lIBKXUMhqNPj8/39zcvLy8vL29PT4+XlxcmEym3EHJKNPptFAoFAgE9fX1i4uL29vbw8PDRqPx4eHB7/fnCEpDif/0oVAIiG1tbScnJ5ubm+vr6zs7O3AMBoNSqWQo2TlklE6n0+v1Tk5O9vb2VlVVFRcXNzc3LywslJeXa7VadnDMWzSUWA7HWlBQ0NraCj9rePz91UCfHWHd01DixHG7AVFUVISeMYBiJJlMMiPsHBpKdnv//1s/iRInW1lZCW1isRh6xhAJGKmurmZG2Dk0WoKyo6MDTA6Hg+HAI2pPJBLp6upiBtk5OVFmMhmkQxQbVB3knbGxMZVKpVarg8FgPB632Wzv7+8lJSWzs7OYiZ8wMw+UUMvtdn9+fkql0rKysv39/YaGhru7u8PDw729vcvLS51Ot7W1NTAw4PF4UDAVCkUeKHk83uDgICKSz+ebzWbQnJ6ejo6OhsNhu91eV1cH7rW1tUQiAVGtVuv09HQeKBGO7e3tqIRI6dfX16gxQ0NDqOBnZ2dXV1dAnJ+fx9E/PT3JZLLx8fGlpaU8UGLLwsJCoOzu7loslvv7exw3NEMmb2xsDAQCEokEZV0sFvf19R0fHzc1NeEVFpbT7cnuV1NTs7q6iigEHGL09vYW/vn5OdR9fX3FZ9HKygpYAZqdz6InoMSutbW1y8vLgDs6Ourp6XG5XBqNBjdpZmYGlwYx0N/fj2msjYYS2yPjjIyMbGxsIEwBCl3/fLW5uTmcPibkYmSUWYjS0tKWlhZ8CONidXZ2QmM42Z9y6YkpgQIspKepqamKigo8khg9JZLoxMTEwcEBYoAEEYvQU0JL3Jvu7m6sTmX/AAAA//9itn8HAAAABklEQVQDAJEZx8Mmv6fTAAAAAElFTkSuQmCC");background-position:-19px -19px;background-repeat:no-repeat;}
+.mic-stop{display:none;font-size:17px;line-height:1;}
+.mic-btn.recording{background:var(--negative-soft);color:var(--negative);}
+.mic-btn.recording .mic-icon{display:none;}
+.mic-btn.recording .mic-stop{display:block;}
 details.done-section{margin-top:12px;}
 details.done-section summary{cursor:pointer;font-size:13px;color:var(--text-muted);font-weight:600;padding:4px 0;}
 
@@ -535,6 +551,7 @@ function importDataFile(file){
 /* ---------- state ---------- */
 var state = {
   tab:'summary',
+  theme:'light',
   journal:{ year:new Date().getFullYear(), month:new Date().getMonth(), selected:todayKey(), marked:{}, entries:[], loading:true, dayLoading:true },
   tasks:{ items:[], loading:true, abandoningId:null, editingId:null },
   tracker:{ items:[], tasks:[], loading:true, editingId:null, editingSubtask:null },
@@ -584,6 +601,26 @@ function refBudgetDoc(key){ return db.doc('budget/'+key); }
 async function safe(promise, failMsg){
   try{ return await promise; }
   catch(e){ console.error(e); if(failMsg) toast(failMsg); return null; }
+}
+function applyTheme(theme){
+  state.theme=theme==='dark'?'dark':'light';
+  document.documentElement.dataset.theme=state.theme;
+  document.querySelector('meta[name="theme-color"]').content=state.theme==='dark'?'#14181A':'#1F4E44';
+}
+async function loadTheme(user){
+  try{
+    var snap=await getDoc(doc(_fsDb,'users',user.uid));
+    if(_auth.currentUser?.uid===user.uid)applyTheme(snap.exists()?snap.data().theme:'light');
+  }catch(e){console.error(e);toast('Не удалось загрузить тему');}
+}
+async function saveTheme(theme){
+  var previous=state.theme;
+  applyTheme(theme);
+  try{
+    await setDoc(doc(_fsDb,'users',activeUser.uid),{theme:state.theme},{merge:true});
+    toast('Тема сохранена');
+  }catch(e){console.error(e);applyTheme(previous);toast('Не удалось сохранить тему');}
+  renderMain();
 }
 
 /* ---------- shell render ---------- */
@@ -925,7 +962,8 @@ function renderTracker(){
     var out='<div class="tracker-item">';
     if(st.editingId===t.id)out+='<form class="inline-edit" data-action="edit-tracker" data-id="'+t.id+'"><input class="input" name="text" maxlength="200" value="'+esc(t.text)+'" required aria-label="Название дела"><button class="btn btn-primary btn-sm">Сохранить</button><button type="button" class="btn btn-ghost btn-sm" data-action="edit-tracker-cancel">Отмена</button></form>';
     else out+='<div class="row"><strong class="task-text '+(t.done?'done':'')+'">'+esc(t.text)+'</strong><button class="icon-btn" data-action="edit-tracker-start" data-id="'+t.id+'" aria-label="Редактировать дело">✎</button><button class="icon-btn danger" data-action="delete-tracker" data-id="'+t.id+'" aria-label="Удалить дело">×</button></div>';
-    out+='<div class="progress-track" role="progressbar" aria-valuenow="'+n+'" aria-valuemin="0" aria-valuemax="'+subs.length+'"><div class="progress-fill" style="width:'+(subs.length?Math.round(n/subs.length*100):0)+'%"></div></div><div class="hint">'+n+' из '+subs.length+' шагов'+(t.done?' · Завершено':'')+'</div>';
+    if(subs.length)out+='<div class="progress-track" role="progressbar" aria-label="Прогресс дела '+esc(t.text)+'" aria-valuenow="'+n+'" aria-valuemin="0" aria-valuemax="'+subs.length+'">'+subs.map(function(s){return '<span class="progress-segment '+(s.done?'done':'')+'" title="'+esc(s.text)+'"></span>';}).join('')+'</div>';
+    out+='<div class="hint">'+n+' из '+subs.length+' шагов'+(t.done?' · Завершено':'')+'</div>';
     out+=subs.map(function(s){return trackerSubtaskRow(t,s);}).join('');
     out+='<form class="add-row" data-action="add-subtask" data-id="'+t.id+'" style="margin:10px 0 0"><input class="input grow" name="text" maxlength="180" placeholder="Новый шаг" required><button type="submit" class="btn btn-ghost btn-sm">+ Шаг</button></form>';
     return out+'</div>';
@@ -967,7 +1005,7 @@ function startDictation(targetId){
   recognition.lang='ru-RU';recognition.continuous=true;recognition.interimResults=true;
   speechSession={recognition:recognition};
   var button=document.querySelector('[data-action="dictate-note"][data-id="'+targetId+'"]');
-  if(button){button.classList.add('recording');button.setAttribute('aria-label','Остановить запись');button.textContent='■';}
+  if(button){button.classList.add('recording');button.setAttribute('aria-label','Остановить запись');}
   recognition.onresult=function(event){
     var final='', interim='';
     for(var i=0;i<event.results.length;i++){
@@ -980,21 +1018,21 @@ function startDictation(targetId){
   recognition.onerror=function(event){failed=true;toast(event.error==='not-allowed'?'Разрешите микрофон для этого сайта в настройках браузера':'Не удалось распознать речь. Проверьте микрофон.');};
   recognition.onend=function(){
     speechSession=null;
-    if(button){button.classList.remove('recording');button.setAttribute('aria-label','Продиктовать заметку');button.textContent='🎙';}
+    if(button){button.classList.remove('recording');button.setAttribute('aria-label','Продиктовать заметку');}
     if(!failed && targetId==='new' && transcript){addNote([prefix,transcript].filter(Boolean).join(' '));}
     else if(targetId==='new')state.notes.draft=field.value;
   };
   try{recognition.start();toast('Говорите. Нажмите ■, когда закончите.');}
-  catch(e){speechSession=null;if(button){button.classList.remove('recording');button.textContent='🎙';}toast('Не удалось включить микрофон');}
+  catch(e){speechSession=null;if(button)button.classList.remove('recording');toast('Не удалось включить микрофон');}
 }
 function renderNotes(){
   var st=state.notes,html='<div class="card"><div class="section-title">Заметки</div><div class="hint" style="margin-bottom:12px">Запиши мысль или нажми микрофон и продиктуй. Речь сохранится текстом после остановки.</div>';
-  html+='<form data-action="add-note"><textarea class="input" id="new-note-text" name="text" rows="3" maxlength="4000" placeholder="Что важно не забыть?" required>'+esc(st.draft)+'</textarea><div class="btn-row" style="margin-top:9px"><button type="submit" class="btn btn-primary btn-sm">Сохранить заметку</button><button type="button" class="btn btn-ghost btn-sm" data-action="dictate-note" data-id="new" aria-label="Продиктовать заметку" title="Продиктовать">🎙</button></div></form></div>';
+  html+='<form data-action="add-note"><textarea class="input" id="new-note-text" name="text" rows="3" maxlength="4000" placeholder="Что важно не забыть?" required>'+esc(st.draft)+'</textarea><div class="btn-row" style="margin-top:9px"><button type="submit" class="btn btn-primary btn-sm">Сохранить заметку</button><button type="button" class="btn mic-btn" data-action="dictate-note" data-id="new" aria-label="Продиктовать заметку" title="Продиктовать"><span class="mic-icon" aria-hidden="true"></span><span class="mic-stop" aria-hidden="true">■</span></button></div></form></div>';
   html+='<div class="card"><div class="section-title">Мои заметки</div>';
   if(st.loading)html+=skeleton(2);
   else if(!st.items.length)html+='<div class="empty-state">Пока нет заметок.</div>';
   else html+=st.items.map(function(n){
-    if(st.editingId===n.id)return '<form class="entry-card" data-action="edit-note" data-id="'+n.id+'"><textarea class="input" id="note-text-'+n.id+'" name="text" rows="3" maxlength="4000" required>'+esc(n.text)+'</textarea><div class="btn-row" style="margin-top:8px"><button class="btn btn-primary btn-sm">Сохранить</button><button type="button" class="btn btn-ghost btn-sm" data-action="dictate-note" data-id="'+n.id+'" aria-label="Продиктовать дополнение">🎙</button><button type="button" class="btn btn-ghost btn-sm" data-action="edit-note-cancel">Отмена</button></div></form>';
+    if(st.editingId===n.id)return '<form class="entry-card" data-action="edit-note" data-id="'+n.id+'"><textarea class="input" id="note-text-'+n.id+'" name="text" rows="3" maxlength="4000" required>'+esc(n.text)+'</textarea><div class="btn-row" style="margin-top:8px"><button class="btn btn-primary btn-sm">Сохранить</button><button type="button" class="btn mic-btn" data-action="dictate-note" data-id="'+n.id+'" aria-label="Продиктовать дополнение" title="Продиктовать"><span class="mic-icon" aria-hidden="true"></span><span class="mic-stop" aria-hidden="true">■</span></button><button type="button" class="btn btn-ghost btn-sm" data-action="edit-note-cancel">Отмена</button></div></form>';
     return '<div class="entry-card"><div class="row between"><span class="entry-time">'+fmtDateShort(n.createdAt.slice(0,10))+' · '+fmtTime(n.createdAt)+'</span><div class="task-actions"><button class="icon-btn" data-action="edit-note-start" data-id="'+n.id+'" aria-label="Редактировать заметку">✎</button><button class="icon-btn danger" data-action="delete-note" data-id="'+n.id+'" aria-label="Удалить заметку">×</button></div></div><div class="note-text">'+esc(n.text)+'</div></div>';
   }).join('');
   return html+'</div>';
@@ -1308,6 +1346,7 @@ async function loadSummary(){
 function renderSummary(){
   var s = state.summary;
   var html = renderCoachCard();
+  html += '<div class="card"><div class="theme-row"><span class="section-title" style="margin:0">Оформление</span><label class="theme-switch"><span>Светлая</span><input type="checkbox" data-action-field="theme-toggle" '+(state.theme==='dark'?'checked':'')+' aria-label="Включить тёмную тему"><span class="theme-slider"></span><span>Тёмная</span></label></div></div>';
   if(s.loading){
     html += skeleton(3);
     html += skeleton(4);
@@ -1436,6 +1475,10 @@ document.getElementById('main-content').addEventListener('change', function(e){
     el.value = '';
     return;
   }
+  if(el.dataset.actionField==='theme-toggle'){
+    saveTheme(el.checked?'dark':'light');
+    return;
+  }
   var f = state.finance;
   if(el.dataset.actionField==='custom-from'){ f.customFrom = el.value; if(f.customTo<f.customFrom) f.customTo=f.customFrom; }
   if(el.dataset.actionField==='custom-to'){ f.customTo = el.value; }
@@ -1535,11 +1578,13 @@ function boot(){
   document.getElementById('main-content').innerHTML = '<div class="card empty-state">Проверяем вход…</div>';
   onAuthStateChanged(_auth, async function(user){
     activeUser = user;
+    applyTheme('light');
     if(!user){ showLogin(); return; }
     document.getElementById('main-content').innerHTML = '<div class="card empty-state">Проверяем и переносим записи…</div>';
     try { await migrateLegacyData(user); }
     catch(e){ console.error(e); document.getElementById('main-content').textContent = 'Не удалось перенести прежние записи. Проверьте правила Firebase и обновите страницу.'; return; }
     if(_auth.currentUser?.uid !== user.uid) return;
+    await loadTheme(user);
     var control = document.getElementById('account-control');
     control.replaceChildren();
     var name = document.createElement('span'); name.textContent = user.displayName || user.email || 'Аккаунт';
