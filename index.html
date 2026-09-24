@@ -122,8 +122,10 @@ input,textarea{font-family:inherit;font-size:15px;}
   box-shadow:0 -2px 14px rgba(0,0,0,.05);
 }
 .tabbar-inner{display:flex;width:100%;max-width:640px;justify-content:space-between;gap:2px;}
+.tabbar-inner{overflow-x:auto;scrollbar-width:none;overscroll-behavior-x:contain;}
+.tabbar-inner::-webkit-scrollbar{display:none;}
 .tab-btn{
-  flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;
+  flex:1 0 66px;display:flex;flex-direction:column;align-items:center;gap:3px;
   background:none;border:none;color:var(--text-muted);padding:6px 2px;border-radius:var(--radius-sm);
   cursor:pointer;font-size:10.5px;letter-spacing:.01em;
 }
@@ -203,6 +205,17 @@ textarea.input{resize:vertical;min-height:44px;}
 .checkbox.checked::after{content:"";position:absolute;left:6px;top:2px;width:5px;height:10px;border:solid #fff;border-width:0 2px 2px 0;transform:rotate(40deg);}
 .task-text{flex:1;word-break:break-word;}
 .task-text.done{color:var(--text-muted);text-decoration:line-through;}
+.task-actions{display:flex;align-items:center;flex:none;}
+.inline-edit{width:100%;display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:9px 0;border-bottom:1px solid var(--border);}
+.inline-edit .input{flex:1 1 160px;}
+.progress-track{height:8px;background:var(--surface-2);border-radius:9px;overflow:hidden;margin:10px 0 5px;}
+.progress-fill{height:100%;background:var(--accent);transition:width .2s;}
+.tracker-item{padding:12px 0;border-top:1px solid var(--border);}
+.tracker-item:first-of-type{border-top:0;}
+.tracker-subtask{display:flex;align-items:center;gap:8px;padding:7px 0 7px 10px;}
+.tracker-subtask .task-text{font-size:13.5px;}
+.note-text{white-space:pre-wrap;overflow-wrap:anywhere;}
+.recording{background:var(--negative-soft);color:var(--negative);}
 details.done-section{margin-top:12px;}
 details.done-section summary{cursor:pointer;font-size:13px;color:var(--text-muted);font-weight:600;padding:4px 0;}
 
@@ -271,6 +284,14 @@ a{color:var(--accent);}
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="3.5"/><path d="m8 12 2.5 2.5L16 9"/></svg>
         <span>Дела</span>
       </button>
+      <button class="tab-btn" data-tab="tracker" aria-label="Трекер длинных дел">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M8 5h12M8 12h12M8 19h12M3 5l1 1 2-2M3 12l1 1 2-2M3 19l1 1 2-2"/></svg>
+        <span>Трекер дел</span>
+      </button>
+      <button class="tab-btn" data-tab="notes" aria-label="Заметки">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3h14v18H5zM8 8h8M8 12h8M8 16h5"/></svg>
+        <span>Заметки</span>
+      </button>
       <button class="tab-btn" data-tab="finance" aria-label="Финансы">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="6" width="17" height="13" rx="2.5"/><path d="M3.5 10h17"/><circle cx="16.5" cy="14" r="1.2" fill="currentColor" stroke="none"/></svg>
         <span>Финансы</span>
@@ -289,7 +310,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.2/fireba
 import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-auth.js";
 import {
   getFirestore, doc, getDoc, setDoc, updateDoc, deleteDoc,
-  collection, addDoc, getDocs, query, where, orderBy, limit
+  collection, addDoc, getDocs, query, where, orderBy, limit, runTransaction
 } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore.js";
 
 (function(){
@@ -317,7 +338,47 @@ var COACH_TIPS = [
   'Закончил ли ты хоть одно начатое на этой неделе? Если нет — не открывай новое, пока не ответишь.',
   'Признанная неудача учит. Тихо брошенная — нет.',
   'Дисциплина — не про силу воли в моменте, а про правила, которые ты не можешь сломать в одиночку.',
-  'Скучно доделывать — нормально. Это не повод бросить.'
+  'Скучно доделывать — нормально. Это не повод бросить.',
+  'Правило 1%: сегодня сделай чуть лучше, чем вчера. Повтори завтра.',
+  'Большое изменение складывается из маленьких действий, которые ты повторяешь.',
+  'Не нужно побеждать весь год сегодня. Сделай один шаг за этот день.',
+  'Один процент усилия кажется незаметным. Сотня повторений меняет картину.',
+  'Стабильность сильнее редких рывков: выбирай темп, который выдержишь завтра.',
+  'Маленькая победа — тоже победа. Запиши её, чтобы увидеть путь целиком.',
+  'Если сегодня тяжело, сократи шаг, но сохрани привычку двигаться.',
+  'Каждый завершённый пункт — доказательство, что ты умеешь доводить до конца.',
+  'Рост не всегда заметен за день. Сравни себя с собой месяц назад.',
+  'Не жди идеального настроения. Начни с действия на пять минут.',
+  'Раздели большую цель на шаги, которые можно закрыть по одному.',
+  'Прогресс — это не только скорость. Иногда победа в том, что ты продолжил.',
+  'Успех любит повторение: вернись к делу и завтра.',
+  'Одна выполненная подзадача уменьшает расстояние до финиша.',
+  'Делай простое достаточно долго, чтобы результат успел проявиться.',
+  'Маленькие регулярные действия повышают шансы на большой результат.',
+  'Неровный день не отменяет весь путь. Вернись к своему ритму.',
+  'Не сравнивай начало своего пути с чьим-то готовым результатом.',
+  'Выбери дело, которое действительно важно, и сделай его на 1% ближе.',
+  'Сегодняшний шаг может быть крошечным. Главное — он настоящий.',
+  'Не копи обещания себе: преврати одно из них в конкретное действие.',
+  'Честно отмеченный прогресс помогает двигаться дальше без самообмана.',
+  'Вчера не получилось? Сегодня — новая попытка, а не новый старт с нуля.',
+  'Достаточно сделать следующий шаг. Следующий после него появится потом.',
+  'Регулярность рождается из посильных задач, а не из наказания себя.',
+  'Список дел показывает направление. Закрытые пункты показывают движение.',
+  'Доделай небольшой кусок сегодня — и завтра вход в дело станет проще.',
+  'Победа за день не обязана быть громкой, чтобы быть важной.',
+  'Отметь то, что сделал. Мозгу полезно видеть не только незавершённое.',
+  'Лучший план — тот, к которому ты действительно возвращаешься.',
+  'Сложное дело становится проще, когда виден ближайший шаг.',
+  'Последовательность важнее идеальной серии без пропусков.',
+  'Каждый день даёт шанс добавить к результату ещё один маленький процент.',
+  'Делай меньше, если нужно. Продолжай, когда можешь.',
+  'Тихая работа каждый день часто заметнее громкого обещания раз в месяц.',
+  'Твоя задача сегодня — не доказать всё сразу, а продвинуться.',
+  'Не обесценивай усилие только потому, что цель пока далеко.',
+  'Завершённая мелочь освобождает внимание для следующей ступени.',
+  'Когда знаешь, что уже сделано, легче выбрать следующий шаг.',
+  'Твои заметки и маленькие победы — карта пройденного пути.'
 ];
 function initialCoachIndex(){ var doy = Math.floor(Date.now()/86400000); return ((doy % COACH_TIPS.length) + COACH_TIPS.length) % COACH_TIPS.length; }
 var REDUCED_MOTION = (typeof window!=='undefined' && window.matchMedia) ? window.matchMedia('(prefers-reduced-motion: reduce)').matches : false;
@@ -475,7 +536,9 @@ function importDataFile(file){
 var state = {
   tab:'summary',
   journal:{ year:new Date().getFullYear(), month:new Date().getMonth(), selected:todayKey(), marked:{}, entries:[], loading:true, dayLoading:true },
-  tasks:{ items:[], loading:true, abandoningId:null },
+  tasks:{ items:[], loading:true, abandoningId:null, editingId:null },
+  tracker:{ items:[], tasks:[], loading:true, editingId:null, editingSubtask:null },
+  notes:{ items:[], loading:true, editingId:null, draft:'' },
   finance:{ period:'month', anchor:todayKey(), customFrom:todayKey(), customTo:todayKey(), rows:[], loading:true },
   budget:{ year:new Date().getFullYear(), month:new Date().getMonth(), doc:null, loading:true, actual:{income:0,expense:0} },
   summary:{ loading:true },
@@ -540,6 +603,7 @@ function skeleton(lines){
 }
 
 async function switchTab(tab){
+  if(speechSession)stopDictation();
   state.tab = tab;
   stopCoachRotation();
   renderTabbar();
@@ -547,6 +611,8 @@ async function switchTab(tab){
   if(tab==='summary'){ loadSummary(); startCoachRotation(); }
   if(tab==='journal') loadJournalMonth();
   if(tab==='tasks') loadTasks();
+  if(tab==='tracker') loadTracker();
+  if(tab==='notes') loadNotes();
   if(tab==='finance') loadFinance();
   if(tab==='budget') loadBudget();
 }
@@ -557,6 +623,8 @@ function renderMain(){
   if(state.tab==='summary') el.innerHTML = renderSummary();
   else if(state.tab==='journal') el.innerHTML = renderJournal();
   else if(state.tab==='tasks') el.innerHTML = renderTasks();
+  else if(state.tab==='tracker') el.innerHTML = renderTracker();
+  else if(state.tab==='notes') el.innerHTML = renderNotes();
   else if(state.tab==='finance') el.innerHTML = renderFinance();
   else if(state.tab==='budget') el.innerHTML = renderBudget();
 }
@@ -636,16 +704,6 @@ function renderJournal(){
   var st = state.journal;
   var label = MONTHS_NOM[st.month]+' '+st.year;
   var html = '<div class="card">';
-  html += '<div class="cal-head"><button class="icon-btn" data-action="journal-prev-month">‹</button><span class="label">'+label+'</span><button class="icon-btn" data-action="journal-next-month">›</button></div>';
-  if(st.loading){
-    html += '<div class="skeleton" style="height:180px"></div>';
-  } else {
-    html += buildCalGrid(st.year, st.month, st.marked, st.selected, todayKey(), 'journal-select-day');
-  }
-  html += '<div class="hint">Дни с записями отмечены точкой</div>';
-  html += '</div>';
-
-  html += '<div class="card">';
   html += '<div class="section-title">'+fmtDateHuman(st.selected)+'</div>';
   html += '<form class="add-row" data-action="add-journal-entry">';
   html += '<textarea class="input grow" name="text" rows="2" maxlength="600" placeholder="Что сегодня получилось, за что себя похвалить..." required></textarea>';
@@ -661,6 +719,15 @@ function renderJournal(){
     }).join('');
   }
   html += '</div>';
+  html += '<div class="card">';
+  html += '<div class="cal-head"><button class="icon-btn" data-action="journal-prev-month" aria-label="Предыдущий месяц">‹</button><span class="label">'+label+'</span><button class="icon-btn" data-action="journal-next-month" aria-label="Следующий месяц">›</button></div>';
+  if(st.loading){
+    html += '<div class="skeleton" style="height:180px"></div>';
+  } else {
+    html += buildCalGrid(st.year, st.month, st.marked, st.selected, todayKey(), 'journal-select-day');
+  }
+  html += '<div class="hint">Дни с записями отмечены точкой</div>';
+  html += '</div>';
   return html;
 }
 
@@ -670,8 +737,8 @@ function renderJournal(){
 async function loadTasks(){
   state.tasks.loading = true;
   renderMain();
-  var snap = await safe(refTasks().orderBy('createdAt','asc').limit(500).get(), 'Не удалось загрузить задачи');
-  state.tasks.items = snap ? snap.docs.map(function(d){ var v=d.data(); v.id=d.id; return v; }) : [];
+  var snap = await safe(refTasks().orderBy('createdAt','asc').get(), 'Не удалось загрузить задачи');
+  state.tasks.items = snap ? snap.docs.filter(function(d){ return !d.data().kind; }).map(function(d){ var v=d.data(); v.id=d.id; return v; }) : [];
   state.tasks.loading = false;
   renderMain();
 }
@@ -680,12 +747,33 @@ async function addTask(text){
   if(ref){ loadTasks(); }
 }
 async function toggleTask(id, newDone){
-  var ok = await safe(refTasks().doc(id).update({ done:newDone, doneAt: newDone?nowISO():null, abandoned:false, abandonedAt:null, abandonReason:'' }), 'Не удалось обновить задачу');
+  var ok = await safe(saveTaskWithSuccess(id, { done:newDone, doneAt:newDone?nowISO():null, abandoned:false, abandonedAt:null, abandonReason:'' }, newDone), 'Не удалось обновить задачу');
   if(ok!==null){
     var t = state.tasks.items.find(function(x){ return x.id===id; });
     if(t){ t.done=newDone; t.doneAt = newDone?nowISO():null; t.abandoned=false; t.abandonReason=''; }
     renderMain();
   }
+}
+async function saveTaskWithSuccess(id, fields, completed){
+  var taskRef=_fsDocRef('tasks', id), date=todayKey();
+  return runTransaction(_fsDb, async function(tx){
+    var taskSnap=await tx.get(taskRef);
+    if(!taskSnap.exists()) throw new Error('Дело больше не существует');
+    var old=taskSnap.data(), changed=Boolean(old.done)!==Boolean(completed);
+    var successDate=changed ? (completed ? date : old.successDate) : null;
+    var journalRef=successDate ? _fsDocRef('journal', successDate) : null;
+    var journalSnap=journalRef ? await tx.get(journalRef) : null;
+    var patch=Object.assign({}, fields, {updatedAt:nowISO()});
+    if(changed && completed) patch.successDate=date;
+    if(changed && !completed) patch.successDate=null;
+    tx.update(taskRef, patch);
+    if(journalRef){
+      var data=journalSnap.exists() ? journalSnap.data() : {};
+      var entries=(data.entries||[]).filter(function(e){return e.sourceTaskId!==id;});
+      if(completed) entries.push({id:uid(),text:'Выполнено: '+(fields.text||old.text),createdAt:nowISO(),sourceTaskId:id});
+      tx.set(journalRef,{date:successDate,entries:entries,updatedAt:nowISO()});
+    }
+  });
 }
 async function abandonTask(id, reason){
   var ok = await safe(refTasks().doc(id).update({ abandoned:true, abandonedAt:nowISO(), abandonReason:reason, done:false, doneAt:null }), 'Не удалось сохранить');
@@ -703,6 +791,21 @@ async function deleteTask(id){
     state.tasks.items = state.tasks.items.filter(function(x){ return x.id!==id; });
     renderMain();
   }
+}
+async function editTask(id, text){
+  var ok = await safe(refTasks().doc(id).update({text:text, updatedAt:nowISO()}), 'Не удалось сохранить дело');
+  if(ok!==null){
+    var item=state.tasks.items.find(function(t){return t.id===id;});
+    if(item) item.text=text;
+    state.tasks.editingId=null;
+    renderMain();
+  }
+}
+async function moveToTracker(id){
+  var item=state.tasks.items.find(function(t){return t.id===id;});
+  if(!item) return;
+  var ok=await safe(refTasks().doc(id).update({kind:'tracker', subtasks:[], done:false, doneAt:null, abandoned:false, abandonedAt:null, abandonReason:'', updatedAt:nowISO()}), 'Не удалось перенести дело');
+  if(ok!==null){ state.tasks.items=state.tasks.items.filter(function(t){return t.id!==id;}); toast('Дело перенесено в трекер'); switchTab('tracker'); }
 }
 
 function taskCounts(items){
@@ -752,6 +855,9 @@ function renderTasks(){
   return html;
 }
 function taskRow(t, abandoning){
+  if(state.tasks.editingId===t.id){
+    return '<form class="inline-edit" data-action="edit-task" data-id="'+t.id+'"><input class="input" name="text" maxlength="200" value="'+esc(t.text)+'" required aria-label="Название дела"><button class="btn btn-primary btn-sm">Сохранить</button><button type="button" class="btn btn-ghost btn-sm" data-action="edit-task-cancel">Отмена</button></form>';
+  }
   if(abandoning){
     return '<form class="abandon-form" data-action="confirm-abandon" data-id="'+t.id+'">'
       + '<div class="task-text-preview">'+esc(t.text)+'</div>'
@@ -761,16 +867,137 @@ function taskRow(t, abandoning){
   }
   if(t.abandoned){
     return '<div class="task-row stacked">'
-      + '<div class="task-main"><span class="task-text abandoned">'+esc(t.text)+'</span><button class="icon-btn danger" data-action="delete-task" data-id="'+t.id+'" aria-label="Удалить">×</button></div>'
+      + '<div class="task-main"><span class="task-text abandoned">'+esc(t.text)+'</span><button class="icon-btn" data-action="edit-task-start" data-id="'+t.id+'" aria-label="Редактировать дело" title="Редактировать">✎</button><button class="icon-btn danger" data-action="delete-task" data-id="'+t.id+'" aria-label="Удалить">×</button></div>'
       + '<div class="abandon-reason">'+esc(t.abandonReason||'')+'</div>'
       + '</div>';
   }
   return '<div class="task-row">'
     + '<button class="checkbox '+(t.done?'checked':'')+'" data-action="toggle-task" data-id="'+t.id+'" data-done="'+(!t.done)+'" aria-label="Отметить"></button>'
     + '<span class="task-text '+(t.done?'done':'')+'">'+esc(t.text)+'</span>'
-    + (t.done ? '' : '<button class="icon-btn" data-action="abandon-task-start" data-id="'+t.id+'" aria-label="Забросить" title="Забросить">⚑</button>')
+    + (t.done ? '' : '<button class="icon-btn" data-action="move-to-tracker" data-id="'+t.id+'" aria-label="Перенести в трекер дел" title="В трекер дел">↗</button><button class="icon-btn" data-action="abandon-task-start" data-id="'+t.id+'" aria-label="Забросить" title="Забросить">⚑</button>')
+    + '<button class="icon-btn" data-action="edit-task-start" data-id="'+t.id+'" aria-label="Редактировать дело" title="Редактировать">✎</button>'
     + '<button class="icon-btn danger" data-action="delete-task" data-id="'+t.id+'" aria-label="Удалить">×</button>'
     + '</div>';
+}
+
+/* =========================================================
+   TRACKER — Длинные дела с подзадачами
+   ========================================================= */
+async function loadTracker(){
+  state.tracker.loading=true; renderMain();
+  var snap=await safe(refTasks().get(), 'Не удалось загрузить трекер');
+  state.tracker.items=snap ? snap.docs.filter(function(d){return d.data().kind==='tracker';}).map(function(d){var v=d.data();v.id=d.id;return v;}).sort(function(a,b){return (a.createdAt||'').localeCompare(b.createdAt||'');}) : [];
+  state.tracker.loading=false; renderMain();
+}
+async function addTracker(text){
+  var ref=await safe(refTasks().add({kind:'tracker',text:text,subtasks:[],done:false,doneAt:null,successDate:null,createdAt:nowISO()}), 'Не удалось добавить дело');
+  if(ref) loadTracker();
+}
+async function updateTracker(id, patch){
+  var ok=await safe(refTasks().doc(id).update(Object.assign({updatedAt:nowISO()},patch)), 'Не удалось сохранить изменения');
+  if(ok!==null){var t=state.tracker.items.find(function(x){return x.id===id;});if(t) Object.assign(t,patch);state.tracker.editingId=null;renderMain();}
+  return ok!==null;
+}
+async function changeTrackerSubtasks(id, subtasks){
+  var t=state.tracker.items.find(function(x){return x.id===id;});if(!t)return;
+  var done=subtasks.length>0 && subtasks.every(function(s){return s.done;});
+  var patch={subtasks:subtasks,done:done,doneAt:done?(t.doneAt||nowISO()):null};
+  var ok=await safe(saveTaskWithSuccess(id,patch,done), 'Не удалось сохранить подзадачи');
+  if(ok!==null){ Object.assign(t,patch); if(done!==Boolean(t.successDate))t.successDate=done?todayKey():null; if(done && !t.doneAt) t.doneAt=nowISO(); renderMain(); if(done)toast('Все шаги выполнены — дело записано в успехи'); }
+}
+async function deleteTracker(id){
+  var ok=await safe(refTasks().doc(id).delete(),'Не удалось удалить дело');
+  if(ok!==null){ state.tracker.items=state.tracker.items.filter(function(t){return t.id!==id;});renderMain(); }
+}
+function trackerSubtaskRow(t,s){
+  if(state.tracker.editingSubtask===t.id+':'+s.id){
+    return '<form class="inline-edit" data-action="edit-subtask" data-id="'+t.id+'" data-subid="'+s.id+'"><input class="input" name="text" maxlength="180" value="'+esc(s.text)+'" required aria-label="Название подзадачи"><button class="btn btn-primary btn-sm">Сохранить</button><button type="button" class="btn btn-ghost btn-sm" data-action="edit-subtask-cancel">Отмена</button></form>';
+  }
+  return '<div class="tracker-subtask"><button class="checkbox '+(s.done?'checked':'')+'" data-action="toggle-subtask" data-id="'+t.id+'" data-subid="'+s.id+'" aria-label="'+(s.done?'Снять отметку':'Выполнить подзадачу')+'"></button><span class="task-text '+(s.done?'done':'')+'">'+esc(s.text)+'</span><button class="icon-btn" data-action="edit-subtask-start" data-id="'+t.id+'" data-subid="'+s.id+'" aria-label="Редактировать подзадачу">✎</button><button class="icon-btn danger" data-action="delete-subtask" data-id="'+t.id+'" data-subid="'+s.id+'" aria-label="Удалить подзадачу">×</button></div>';
+}
+function renderTracker(){
+  var st=state.tracker,html='<div class="card"><div class="section-title">Трекер длинных дел</div><div class="hint" style="margin-bottom:12px">Разбей большое дело на шаги. Когда все шаги выполнены, дело завершится и появится в успехах.</div>';
+  html+='<form class="add-row" data-action="add-tracker"><input class="input grow" name="text" maxlength="200" placeholder="Большое дело" required><button class="btn btn-primary" type="submit">Добавить</button></form>';
+  if(st.loading)html+=skeleton(2);
+  else if(!st.items.length)html+='<div class="empty-state">Пока нет длинных дел. Добавь новое или перенеси дело из вкладки «Дела» кнопкой ↗.</div>';
+  else html+=st.items.slice().sort(function(a,b){return Number(a.done)-Number(b.done);}).map(function(t){
+    var subs=t.subtasks||[], n=subs.filter(function(s){return s.done;}).length;
+    var out='<div class="tracker-item">';
+    if(st.editingId===t.id)out+='<form class="inline-edit" data-action="edit-tracker" data-id="'+t.id+'"><input class="input" name="text" maxlength="200" value="'+esc(t.text)+'" required aria-label="Название дела"><button class="btn btn-primary btn-sm">Сохранить</button><button type="button" class="btn btn-ghost btn-sm" data-action="edit-tracker-cancel">Отмена</button></form>';
+    else out+='<div class="row"><strong class="task-text '+(t.done?'done':'')+'">'+esc(t.text)+'</strong><button class="icon-btn" data-action="edit-tracker-start" data-id="'+t.id+'" aria-label="Редактировать дело">✎</button><button class="icon-btn danger" data-action="delete-tracker" data-id="'+t.id+'" aria-label="Удалить дело">×</button></div>';
+    out+='<div class="progress-track" role="progressbar" aria-valuenow="'+n+'" aria-valuemin="0" aria-valuemax="'+subs.length+'"><div class="progress-fill" style="width:'+(subs.length?Math.round(n/subs.length*100):0)+'%"></div></div><div class="hint">'+n+' из '+subs.length+' шагов'+(t.done?' · Завершено':'')+'</div>';
+    out+=subs.map(function(s){return trackerSubtaskRow(t,s);}).join('');
+    out+='<form class="add-row" data-action="add-subtask" data-id="'+t.id+'" style="margin:10px 0 0"><input class="input grow" name="text" maxlength="180" placeholder="Новый шаг" required><button type="submit" class="btn btn-ghost btn-sm">+ Шаг</button></form>';
+    return out+'</div>';
+  }).join('');
+  return html+'</div>';
+}
+
+/* =========================================================
+   NOTES — Быстрые текстовые и продиктованные заметки
+   ========================================================= */
+async function loadNotes(){
+  state.notes.loading=true;renderMain();
+  var snap=await safe(refTasks().get(),'Не удалось загрузить заметки');
+  state.notes.items=snap?snap.docs.filter(function(d){return d.data().kind==='note';}).map(function(d){var v=d.data();v.id=d.id;return v;}).sort(function(a,b){return (b.createdAt||'').localeCompare(a.createdAt||'');}):[];
+  state.notes.loading=false;renderMain();
+}
+async function addNote(text){
+  if(!text.trim())return;
+  var ref=await safe(refTasks().add({kind:'note',text:text.trim(),createdAt:nowISO(),updatedAt:nowISO()}),'Не удалось сохранить заметку');
+  if(ref){state.notes.draft='';toast('Заметка сохранена');loadNotes();}
+}
+async function editNote(id,text){
+  var ok=await safe(refTasks().doc(id).update({text:text,updatedAt:nowISO()}),'Не удалось изменить заметку');
+  if(ok!==null){var note=state.notes.items.find(function(n){return n.id===id;});if(note)note.text=text;state.notes.editingId=null;renderMain();}
+}
+async function deleteNote(id){
+  var ok=await safe(refTasks().doc(id).delete(),'Не удалось удалить заметку');
+  if(ok!==null){state.notes.items=state.notes.items.filter(function(n){return n.id!==id;});renderMain();}
+}
+var speechSession=null;
+function stopDictation(){if(speechSession){speechSession.recognition.stop();} }
+function startDictation(targetId){
+  if(speechSession){stopDictation();return;}
+  var Speech=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!Speech){toast('Распознавание голоса недоступно в этом браузере. Можно написать заметку вручную.');return;}
+  var field=targetId==='new'?document.getElementById('new-note-text'):document.getElementById('note-text-'+targetId);
+  if(!field)return;
+  var recognition=new Speech(), prefix=field.value.trim(), transcript='',failed=false;
+  recognition.lang='ru-RU';recognition.continuous=true;recognition.interimResults=true;
+  speechSession={recognition:recognition};
+  var button=document.querySelector('[data-action="dictate-note"][data-id="'+targetId+'"]');
+  if(button){button.classList.add('recording');button.setAttribute('aria-label','Остановить запись');button.textContent='■';}
+  recognition.onresult=function(event){
+    var final='', interim='';
+    for(var i=0;i<event.results.length;i++){
+      if(event.results[i].isFinal)final+=event.results[i][0].transcript+' ';
+      else interim+=event.results[i][0].transcript;
+    }
+    transcript=final.trim();field.value=[prefix,transcript,interim].filter(Boolean).join(' ');
+    if(targetId==='new')state.notes.draft=field.value;
+  };
+  recognition.onerror=function(event){failed=true;toast(event.error==='not-allowed'?'Разрешите микрофон для этого сайта в настройках браузера':'Не удалось распознать речь. Проверьте микрофон.');};
+  recognition.onend=function(){
+    speechSession=null;
+    if(button){button.classList.remove('recording');button.setAttribute('aria-label','Продиктовать заметку');button.textContent='🎙';}
+    if(!failed && targetId==='new' && transcript){addNote([prefix,transcript].filter(Boolean).join(' '));}
+    else if(targetId==='new')state.notes.draft=field.value;
+  };
+  try{recognition.start();toast('Говорите. Нажмите ■, когда закончите.');}
+  catch(e){speechSession=null;if(button){button.classList.remove('recording');button.textContent='🎙';}toast('Не удалось включить микрофон');}
+}
+function renderNotes(){
+  var st=state.notes,html='<div class="card"><div class="section-title">Заметки</div><div class="hint" style="margin-bottom:12px">Запиши мысль или нажми микрофон и продиктуй. Речь сохранится текстом после остановки.</div>';
+  html+='<form data-action="add-note"><textarea class="input" id="new-note-text" name="text" rows="3" maxlength="4000" placeholder="Что важно не забыть?" required>'+esc(st.draft)+'</textarea><div class="btn-row" style="margin-top:9px"><button type="submit" class="btn btn-primary btn-sm">Сохранить заметку</button><button type="button" class="btn btn-ghost btn-sm" data-action="dictate-note" data-id="new" aria-label="Продиктовать заметку" title="Продиктовать">🎙</button></div></form></div>';
+  html+='<div class="card"><div class="section-title">Мои заметки</div>';
+  if(st.loading)html+=skeleton(2);
+  else if(!st.items.length)html+='<div class="empty-state">Пока нет заметок.</div>';
+  else html+=st.items.map(function(n){
+    if(st.editingId===n.id)return '<form class="entry-card" data-action="edit-note" data-id="'+n.id+'"><textarea class="input" id="note-text-'+n.id+'" name="text" rows="3" maxlength="4000" required>'+esc(n.text)+'</textarea><div class="btn-row" style="margin-top:8px"><button class="btn btn-primary btn-sm">Сохранить</button><button type="button" class="btn btn-ghost btn-sm" data-action="dictate-note" data-id="'+n.id+'" aria-label="Продиктовать дополнение">🎙</button><button type="button" class="btn btn-ghost btn-sm" data-action="edit-note-cancel">Отмена</button></div></form>';
+    return '<div class="entry-card"><div class="row between"><span class="entry-time">'+fmtDateShort(n.createdAt.slice(0,10))+' · '+fmtTime(n.createdAt)+'</span><div class="task-actions"><button class="icon-btn" data-action="edit-note-start" data-id="'+n.id+'" aria-label="Редактировать заметку">✎</button><button class="icon-btn danger" data-action="delete-note" data-id="'+n.id+'" aria-label="Удалить заметку">×</button></div></div><div class="note-text">'+esc(n.text)+'</div></div>';
+  }).join('');
+  return html+'</div>';
 }
 
 /* =========================================================
@@ -1049,7 +1276,7 @@ async function loadSummary(){
   var monthTotals = financeTotals(rows);
 
   var tasksSnap = await safe(refTasks().get());
-  var tasksItems = tasksSnap ? tasksSnap.docs.map(function(d){ return d.data(); }) : [];
+  var tasksItems = tasksSnap ? tasksSnap.docs.filter(function(d){return !d.data().kind;}).map(function(d){ return d.data(); }) : [];
   var activeCount = tasksItems.filter(function(t){ return !t.done && !t.abandoned; }).length;
   var doneWeek = tasksItems.filter(function(t){ return t.done && t.doneAt && t.doneAt.slice(0,10)>=wk0; }).length;
   var completion = taskCounts(tasksItems);
@@ -1155,12 +1382,31 @@ document.getElementById('main-content').addEventListener('click', function(e){
   else if(a==='export-data'){ exportData(); }
   else if(a==='abandon-task-start'){ state.tasks.abandoningId = btn.dataset.id; renderMain(); }
   else if(a==='abandon-task-cancel'){ state.tasks.abandoningId = null; renderMain(); }
-  else if(a==='journal-prev-month'){ var s=state.journal; s.month--; if(s.month<0){s.month=11;s.year--;} loadJournalMonth(); }
-  else if(a==='journal-next-month'){ var s2=state.journal; s2.month++; if(s2.month>11){s2.month=0;s2.year++;} loadJournalMonth(); }
+  else if(a==='journal-prev-month'){ var s=state.journal; s.month--; if(s.month<0){s.month=11;s.year--;} s.selected=fmtKey(new Date(s.year,s.month,Math.min(parseKey(s.selected).getDate(),new Date(s.year,s.month+1,0).getDate()))); loadJournalMonth(); }
+  else if(a==='journal-next-month'){ var s2=state.journal; s2.month++; if(s2.month>11){s2.month=0;s2.year++;} s2.selected=fmtKey(new Date(s2.year,s2.month,Math.min(parseKey(s2.selected).getDate(),new Date(s2.year,s2.month+1,0).getDate()))); loadJournalMonth(); }
   else if(a==='journal-select-day'){ loadJournalDay(btn.dataset.key); }
   else if(a==='delete-journal-entry'){ if(confirm('Удалить запись?')) deleteJournalEntry(btn.dataset.id); }
   else if(a==='toggle-task'){ toggleTask(btn.dataset.id, btn.dataset.done==='true'); }
+  else if(a==='edit-task-start'){state.tasks.editingId=btn.dataset.id;renderMain();}
+  else if(a==='edit-task-cancel'){state.tasks.editingId=null;renderMain();}
+  else if(a==='move-to-tracker'){moveToTracker(btn.dataset.id);}
   else if(a==='delete-task'){ if(confirm('Удалить задачу?')) deleteTask(btn.dataset.id); }
+  else if(a==='edit-tracker-start'){state.tracker.editingId=btn.dataset.id;renderMain();}
+  else if(a==='edit-tracker-cancel'){state.tracker.editingId=null;renderMain();}
+  else if(a==='delete-tracker'){if(confirm('Удалить длинное дело со всеми подзадачами?'))deleteTracker(btn.dataset.id);}
+  else if(a==='toggle-subtask'){
+    var target=state.tracker.items.find(function(t){return t.id===btn.dataset.id;});
+    if(target){var steps=clone(target.subtasks||[]);var step=steps.find(function(s){return s.id===btn.dataset.subid;});if(step){step.done=!step.done;changeTrackerSubtasks(target.id,steps);}}
+  }
+  else if(a==='edit-subtask-start'){state.tracker.editingSubtask=btn.dataset.id+':'+btn.dataset.subid;renderMain();}
+  else if(a==='edit-subtask-cancel'){state.tracker.editingSubtask=null;renderMain();}
+  else if(a==='delete-subtask'){
+    if(confirm('Удалить подзадачу?')){var parent=state.tracker.items.find(function(t){return t.id===btn.dataset.id;});if(parent)changeTrackerSubtasks(parent.id,(parent.subtasks||[]).filter(function(s){return s.id!==btn.dataset.subid;}));}
+  }
+  else if(a==='edit-note-start'){state.notes.editingId=btn.dataset.id;renderMain();}
+  else if(a==='edit-note-cancel'){if(speechSession)stopDictation();state.notes.editingId=null;renderMain();}
+  else if(a==='delete-note'){if(confirm('Удалить заметку?'))deleteNote(btn.dataset.id);}
+  else if(a==='dictate-note'){startDictation(btn.dataset.id);}
   else if(a==='set-finance-period'){ state.finance.period=btn.dataset.period; loadFinance(); }
   else if(a==='finance-shift'){
     var dir=Number(btn.dataset.dir); var f=state.finance; var d=parseKey(f.anchor);
@@ -1195,6 +1441,9 @@ document.getElementById('main-content').addEventListener('change', function(e){
   if(el.dataset.actionField==='custom-to'){ f.customTo = el.value; }
   loadFinance();
 });
+document.getElementById('main-content').addEventListener('input',function(e){
+  if(e.target.id==='new-note-text')state.notes.draft=e.target.value;
+});
 
 document.getElementById('main-content').addEventListener('submit', function(e){
   var form = e.target.closest('form[data-action]');
@@ -1214,6 +1463,30 @@ document.getElementById('main-content').addEventListener('submit', function(e){
     if(!t) return;
     addTask(t);
     form.reset();
+  }
+  else if(a==='edit-task'){
+    var newText=(fd.get('text')||'').trim();if(newText)editTask(form.dataset.id,newText);
+  }
+  else if(a==='add-tracker'){
+    var title=(fd.get('text')||'').trim();if(title){addTracker(title);form.reset();}
+  }
+  else if(a==='edit-tracker'){
+    var trackerTitle=(fd.get('text')||'').trim();if(trackerTitle)updateTracker(form.dataset.id,{text:trackerTitle});
+  }
+  else if(a==='add-subtask'){
+    var subTitle=(fd.get('text')||'').trim(),parent=state.tracker.items.find(function(t){return t.id===form.dataset.id;});
+    if(subTitle && parent){changeTrackerSubtasks(parent.id,(parent.subtasks||[]).concat([{id:uid(),text:subTitle,done:false}]));form.reset();}
+  }
+  else if(a==='edit-subtask'){
+    var renamed=(fd.get('text')||'').trim(),pt=state.tracker.items.find(function(t){return t.id===form.dataset.id;});
+    if(renamed && pt){var subs=clone(pt.subtasks||[]),sub=subs.find(function(s){return s.id===form.dataset.subid;});if(sub){sub.text=renamed;changeTrackerSubtasks(pt.id,subs).then(function(){state.tracker.editingSubtask=null;renderMain();});}}
+  }
+  else if(a==='add-note'){
+    if(speechSession)stopDictation();
+    else {var noteText=(fd.get('text')||'').trim();if(noteText)addNote(noteText);}
+  }
+  else if(a==='edit-note'){
+    var editedNote=(fd.get('text')||'').trim();if(editedNote)editNote(form.dataset.id,editedNote);
   }
   else if(a==='confirm-abandon'){
     var reason = (fd.get('reason')||'').trim();
