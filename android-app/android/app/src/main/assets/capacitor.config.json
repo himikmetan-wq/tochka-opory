@@ -1,0 +1,12 @@
+{
+	"appId": "ru.tochkaopory.app",
+	"appName": "Точка опоры",
+	"webDir": "www",
+	"server": {
+		"url": "https://himikmetan-wq.github.io/tochka-opory/",
+		"cleartext": false
+	},
+	"android": {
+		"allowMixedContent": false
+	}
+}
