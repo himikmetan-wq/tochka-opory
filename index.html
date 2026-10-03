@@ -1270,8 +1270,8 @@ function startDictation(targetId){
 }
 function renderNotes(){
   var st=state.notes,html='<div class="card"><div class="section-title">Заметки</div><div class="hint" style="margin-bottom:12px">Запиши мысль или нажми микрофон и продиктуй. Речь сохранится текстом после остановки.</div>';
-  html+='<form data-action="add-note"><textarea class="input" id="new-note-text" name="text" rows="3" maxlength="4000" placeholder="Что важно не забыть?" required>'+esc(st.draft)+'</textarea><div class="btn-row" style="margin-top:9px"><button type="submit" class="btn btn-primary btn-sm">Сохранить заметку</button><button type="button" class="btn mic-btn" data-action="dictate-note" data-id="new" aria-label="Продиктовать заметку" title="Продиктовать"><span class="mic-icon" aria-hidden="true"></span><span class="mic-stop" aria-hidden="true">■</span></button></div></form></div>';
-  html+='<div class="card"><div class="section-title">Мои заметки</div>';
+  html+='<form data-action="add-note"><textarea class="input" id="new-note-text" name="text" rows="3" maxlength="4000" placeholder="Что важно не забыть?" required>'+esc(st.draft)+'</textarea><div class="btn-row" style="margin-top:9px"><button type="submit" class="btn btn-primary btn-sm">Сохранить заметку</button><button type="button" class="btn mic-btn" data-action="dictate-note" data-id="new" aria-label="Продиктовать заметку" title="Продиктовать"><span class="mic-icon" aria-hidden="true"></span><span class="mic-stop" aria-hidden="true">■</span></button></div></form>';
+  html+='<div class="divider" style="margin-top:14px"></div><div class="section-title" style="margin-top:12px">Мои заметки</div>';
   if(st.loading)html+=skeleton(2);
   else if(!st.items.length)html+='<div class="empty-state">Пока нет заметок.</div>';
   else html+=st.items.map(function(n){
