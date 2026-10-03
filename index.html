@@ -18,6 +18,8 @@
 .account-bar{display:flex;align-items:center;gap:8px;justify-content:flex-end;max-width:100%;font-size:12px}
 .account-bar span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:160px}
 .account-bar button{border:1px solid var(--border);background:var(--surface);color:var(--text);border-radius:8px;padding:6px;cursor:pointer}
+#account-control{display:flex;align-items:center;gap:10px;}
+.header-theme-switch{gap:0;flex:none;}
 .login-card{max-width:420px;margin:12vh auto 0;padding:28px;text-align:center;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius)}
 .login-card p{color:var(--text-muted);line-height:1.5}
 .login-card button{margin-top:12px;padding:12px 18px;border:0;border-radius:10px;background:var(--accent);color:white;font:inherit;cursor:pointer}
@@ -139,6 +141,7 @@ input,textarea{font-family:inherit;font-size:15px;}
 .stack{display:flex;flex-direction:column;gap:14px;}
 
 .stat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;}
+.stat-grid-2{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;}
 .stat-tile{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px 10px;box-shadow:var(--shadow);}
 .stat-tile .label{font-size:11px;color:var(--text-muted);margin-bottom:4px;}
 .stat-tile .value{font-size:17px;font-weight:600;}
@@ -215,7 +218,10 @@ textarea.input{resize:vertical;min-height:44px;}
 .tracker-subtask.dragging-placeholder{opacity:0;}
 .tracker-subtask-drag-clone{box-shadow:var(--shadow);border-radius:var(--radius-sm);z-index:9999;pointer-events:none;opacity:.97;background:var(--surface);}
 .champion-card{background:linear-gradient(135deg,#123C33,#0A2620);border:1px solid #1E5C4C;color:#EAF7F2;box-shadow:var(--shadow);}
-.champion-title{font-size:13px;font-weight:700;letter-spacing:.02em;text-transform:uppercase;color:#9EDACB;margin-bottom:10px;}
+.champion-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px;}
+.champion-title{font-size:13px;font-weight:700;letter-spacing:.02em;text-transform:uppercase;color:#9EDACB;margin-bottom:0;}
+.champion-pencil{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.25);color:#9EDACB;width:26px;height:26px;border-radius:7px;cursor:pointer;font-size:13px;display:flex;align-items:center;justify-content:center;flex:none;padding:0;}
+.champion-pencil:hover{background:rgba(255,255,255,.16);}
 .champion-reward{background:rgba(46,230,197,.14);border:1px solid rgba(46,230,197,.35);border-radius:var(--radius-sm);padding:8px 12px;font-size:13px;font-weight:600;color:#6FF0D6;margin-bottom:10px;}
 .champion-item{display:flex;align-items:center;gap:10px;padding:8px 2px;border-bottom:1px solid rgba(255,255,255,.08);}
 .champion-item:last-child{border-bottom:none;}
@@ -277,6 +283,8 @@ details.done-section summary{cursor:pointer;font-size:13px;color:var(--text-mute
 .budget-item-row:last-child{border-bottom:none;}
 .budget-item-row .name{flex:1;}
 .budget-item-row .amount{font-weight:600;}
+.budget-item-row.paid .name{text-decoration:line-through;color:var(--text-muted);}
+.budget-item-row.paid .amount{text-decoration:line-through;color:var(--text-muted);}
 
 .empty-state{text-align:center;padding:26px 10px;color:var(--text-muted);font-size:13.5px;}
 .empty-state .big{font-size:26px;margin-bottom:6px;}
@@ -583,7 +591,7 @@ function importDataFile(file){
 var state = {
   tab:'summary',
   theme:'light',
-  journal:{ year:new Date().getFullYear(), month:new Date().getMonth(), selected:todayKey(), marked:{}, entries:[], loading:true, dayLoading:true, editingId:null },
+  journal:{ year:new Date().getFullYear(), month:new Date().getMonth(), selected:todayKey(), marked:{}, allMarked:{}, entries:[], loading:true, dayLoading:true, editingId:null, statsLoading:true, totalDays:0, streak:0, calendarOpen:false },
   tasks:{ items:[], loading:true, abandoningId:null, editingId:null },
   tracker:{ items:[], tasks:[], loading:true, editingId:null, editingSubtask:null },
   notes:{ items:[], loading:true, editingId:null, draft:'' },
@@ -692,7 +700,7 @@ async function switchTab(tab){
   renderTabbar();
   renderMain();
   if(tab==='summary'){ loadSummary(); loadChampion(); startCoachRotation(); }
-  if(tab==='journal') loadJournalMonth();
+  if(tab==='journal'){ loadJournalMonth(); loadJournalStats(); }
   if(tab==='tasks') loadTasks();
   if(tab==='tracker') loadTracker();
   if(tab==='notes') loadNotes();
@@ -733,6 +741,31 @@ async function loadJournalMonth(){
   renderMain();
   loadJournalDay(state.journal.selected);
 }
+function computeJournalStats(markedAll){
+  var totalDays = Object.keys(markedAll).length;
+  var today = todayDate();
+  var tKey = fmtKey(today);
+  var cursor = markedAll[tKey] ? today : addDays(today,-1);
+  var streak = 0;
+  while(markedAll[fmtKey(cursor)]){
+    streak++;
+    cursor = addDays(cursor,-1);
+  }
+  return { totalDays:totalDays, streak:streak };
+}
+async function loadJournalStats(){
+  state.journal.statsLoading = true;
+  renderMain();
+  var snap = await safe(refJournalColl().get(), 'Не удалось загрузить статистику дневника');
+  var markedAll = {};
+  if(snap){ snap.docs.forEach(function(d){ var data=d.data(); if(data && data.entries && data.entries.length) markedAll[d.id]=true; }); }
+  state.journal.allMarked = markedAll;
+  var stats = computeJournalStats(markedAll);
+  state.journal.totalDays = stats.totalDays;
+  state.journal.streak = stats.streak;
+  state.journal.statsLoading = false;
+  renderMain();
+}
 async function loadJournalDay(key){
   state.journal.dayLoading = true;
   state.journal.selected = key;
@@ -751,6 +784,12 @@ async function addJournalEntry(text){
   if(ok!==null){
     state.journal.entries = entries;
     state.journal.marked[key] = true;
+    if(!state.journal.allMarked[key]){
+      state.journal.allMarked[key] = true;
+      var stats = computeJournalStats(state.journal.allMarked);
+      state.journal.totalDays = stats.totalDays;
+      state.journal.streak = stats.streak;
+    }
     toast('Записано');
     renderMain();
   }
@@ -761,7 +800,14 @@ async function deleteJournalEntry(entryId){
   var ok = await safe(refJournalDoc(key).set({ date:key, entries:entries, updatedAt:nowISO() }), 'Не удалось удалить запись');
   if(ok!==null){
     state.journal.entries = entries;
-    state.journal.marked[key] = entries.length>0;
+    var hasEntries = entries.length>0;
+    state.journal.marked[key] = hasEntries;
+    if(!hasEntries && state.journal.allMarked[key]){
+      delete state.journal.allMarked[key];
+      var stats2 = computeJournalStats(state.journal.allMarked);
+      state.journal.totalDays = stats2.totalDays;
+      state.journal.streak = stats2.streak;
+    }
     renderMain();
   }
 }
@@ -831,13 +877,22 @@ function renderJournal(){
   }
   html += '</div>';
   html += '<div class="card">';
-  html += '<div class="cal-head"><button class="icon-btn" data-action="journal-prev-month" aria-label="Предыдущий месяц">‹</button><span class="label">'+label+'</span><button class="icon-btn" data-action="journal-next-month" aria-label="Следующий месяц">›</button></div>';
-  if(st.loading){
-    html += '<div class="skeleton" style="height:180px"></div>';
+  html += '<div class="stat-grid-2">';
+  html += '<div class="stat-tile"><div class="label">Дней всего</div><div class="value mono">'+(st.statsLoading?'…':st.totalDays)+'</div></div>';
+  html += '<div class="stat-tile"><div class="label">Серия дней</div><div class="value mono">'+(st.statsLoading?'…':st.streak)+'</div></div>';
+  html += '</div>';
+  if(!st.calendarOpen){
+    html += '<button type="button" class="btn btn-ghost btn-sm" data-action="journal-toggle-calendar" style="margin-top:12px">Развернуть календарь</button>';
   } else {
-    html += buildCalGrid(st.year, st.month, st.marked, st.selected, todayKey(), 'journal-select-day');
+    html += '<div class="cal-head" style="margin-top:14px"><button class="icon-btn" data-action="journal-prev-month" aria-label="Предыдущий месяц">‹</button><span class="label">'+label+'</span><button class="icon-btn" data-action="journal-next-month" aria-label="Следующий месяц">›</button></div>';
+    if(st.loading){
+      html += '<div class="skeleton" style="height:180px"></div>';
+    } else {
+      html += buildCalGrid(st.year, st.month, st.marked, st.selected, todayKey(), 'journal-select-day');
+    }
+    html += '<div class="hint">Дни с записями отмечены точкой</div>';
+    html += '<button type="button" class="btn btn-ghost btn-sm" data-action="journal-toggle-calendar" style="margin-top:8px">Свернуть календарь</button>';
   }
-  html += '<div class="hint">Дни с записями отмечены точкой</div>';
   html += '</div>';
   return html;
 }
@@ -1361,13 +1416,15 @@ function championDayWord(n){
 function renderChampionCard(){
   var c = state.champion;
   if(c.loading){
-    return '<div class="card champion-card"><div class="champion-title">Три дела чемпиона</div><div class="skeleton" style="background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.08)"></div></div>';
+    return '<div class="card champion-card"><div class="champion-title" style="margin-bottom:10px">Три дела чемпиона</div><div class="skeleton" style="background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.08)"></div></div>';
   }
   var items = c.editing ? (c.draftItems||[]) : c.items;
   var tKey = todayKey();
   var todayIds = c.log[tKey] || [];
   var html = '<div class="card champion-card">';
-  html += '<div class="champion-title">Три дела чемпиона</div>';
+  html += '<div class="champion-head"><div class="champion-title">Три дела чемпиона</div>'
+    + (!c.editing ? '<button type="button" class="champion-pencil" data-action="champion-edit-start" aria-label="Редактировать">✎</button>' : '')
+    + '</div>';
   if(!c.editing && c.todayDone) html += '<div class="champion-reward">🏆 Сегодня выполнен блок чемпиона!</div>';
 
   if(c.editing){
@@ -1381,7 +1438,7 @@ function renderChampionCard(){
     html += '</form>';
   } else {
     if(!items.length){
-      html += '<div class="empty-state" style="color:#8FB8AE">Список пуст. Нажмите «редактировать», чтобы добавить дела.</div>';
+      html += '<div class="empty-state" style="color:#8FB8AE">Список пуст. Нажмите ✎, чтобы добавить дела.</div>';
     } else {
       html += items.map(function(it){
         var done = todayIds.indexOf(it.id)!==-1;
@@ -1389,7 +1446,6 @@ function renderChampionCard(){
           + '<span class="champion-item-text '+(done?'done':'')+'">'+esc(it.text)+'</span></div>';
       }).join('');
     }
-    html += '<div class="champion-footer"><button type="button" class="champion-link" data-action="champion-edit-start">✎ редактировать</button><span></span></div>';
   }
 
   html += '<div class="champion-streak-wrap"><div class="champion-streak-label">Серия: '+c.streak+' '+championDayWord(c.streak)+'</div>'
@@ -1574,6 +1630,14 @@ async function saveBudget(doc){
   if(ok!==null){ state.budget.doc = doc; toast('Сохранено'); renderMain(); }
   return ok!==null;
 }
+async function toggleBudgetItemPaid(id){
+  var doc = clone(state.budget.doc || emptyBudgetDoc());
+  doc.items = (doc.items||[]).map(function(it){ return it.id===id ? Object.assign({}, it, {paid: !it.paid}) : it; });
+  doc.updatedAt = nowISO();
+  var key = monthKey(state.budget.year, state.budget.month);
+  var ok = await safe(refBudgetDoc(key).set(doc), 'Не удалось сохранить отметку');
+  if(ok!==null){ state.budget.doc = doc; renderMain(); }
+}
 async function copyPrevMonth(){
   var y=state.budget.year, m=state.budget.month;
   var pm = m===0?11:m-1, py = m===0?y-1:y;
@@ -1615,8 +1679,8 @@ function renderBudget(){
 
   html += '<form class="stack" data-action="save-budget-meta">';
   html += '<label class="muted">Подушка безопасности (сейчас)<input class="input mono" type="number" name="cushion" min="0" step="1" value="'+(doc.cushion||0)+'"></label>';
-  html += '<label class="muted">Ожидаемый доход на месяц<input class="input mono" type="number" name="plannedIncome" min="0" step="1" value="'+(doc.plannedIncome||0)+'"></label>';
-  html += '<label class="muted">Заметки<textarea class="input" name="notes" rows="2" maxlength="400">'+esc(doc.notes||'')+'</textarea></label>';
+  html += '<label class="muted">Заложено на месяц<input class="input mono" type="number" name="plannedIncome" min="0" step="1" value="'+(doc.plannedIncome||0)+'"></label>';
+  html += '<label class="muted">Дополнительные плановые расходы<textarea class="input" name="notes" rows="2" maxlength="400">'+esc(doc.notes||'')+'</textarea></label>';
   html += '<button type="submit" class="btn btn-primary btn-sm" style="align-self:flex-start">Сохранить</button>';
   html += '</form>';
   html += '</div>';
@@ -1632,11 +1696,15 @@ function renderBudget(){
     html += '<div class="empty-state">Список пуст — добавьте регулярные платежи и траты.</div>';
   } else {
     html += doc.items.map(function(it){
-      return '<div class="budget-item-row"><span class="name">'+esc(it.name)+'</span><span class="amount mono">'+fmtMoney(it.amount)+'</span><button class="icon-btn danger" data-action="delete-budget-item" data-id="'+it.id+'">×</button></div>';
+      return '<div class="budget-item-row'+(it.paid?' paid':'')+'">'
+        + '<button class="checkbox '+(it.paid?'checked':'')+'" type="button" data-action="toggle-budget-item-paid" data-id="'+it.id+'" aria-label="Отметить оплаченным"></button>'
+        + '<span class="name">'+esc(it.name)+'</span><span class="amount mono">'+fmtMoney(it.amount)+'</span><button class="icon-btn danger" data-action="delete-budget-item" data-id="'+it.id+'">×</button></div>';
     }).join('');
   }
+  var paidSum = (doc.items||[]).filter(function(it){ return it.paid; }).reduce(function(s,it){ return s+it.amount; },0);
   html += '<div class="divider"></div>';
   html += '<div class="row between"><span>Итого плановых трат</span><span class="mono" style="font-weight:600">'+fmtMoney(planned)+'</span></div>';
+  html += '<div class="row between"><span>Вычеркнуто (оплачено)</span><span class="mono" style="font-weight:600;color:var(--positive)">'+fmtMoney(paidSum)+'</span></div>';
   html += '<div class="row between"><span>Остаток после месяца (план)</span><span class="mono" style="font-weight:700;color:'+(afterMonth>=0?'var(--positive)':'var(--negative)')+'">'+fmtSigned(afterMonth)+'</span></div>';
   html += '</div>';
 
@@ -1662,16 +1730,7 @@ async function loadSummary(){
   renderMain();
   var today = todayDate();
   var mon = mondayOf(today);
-  var monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
-  var monthEnd = new Date(today.getFullYear(), today.getMonth()+1, 0);
-
-  var financeSnap = await safe(refFinanceColl().where('date','>=',fmtKey(monthStart)).where('date','<=',fmtKey(monthEnd)).get());
-  var rows = financeSnap ? financeSnap.docs.map(function(d){ return d.data(); }) : [];
-  var tk = fmtKey(today);
   var wk0 = fmtKey(mon);
-  var todayTotals = financeTotals(rows.filter(function(r){ return r.date===tk; }));
-  var weekTotals = financeTotals(rows.filter(function(r){ return r.date>=wk0; }));
-  var monthTotals = financeTotals(rows);
 
   var tasksSnap = await safe(refTasks().get());
   var tasksItems = tasksSnap ? tasksSnap.docs.filter(function(d){return !d.data().kind;}).map(function(d){ var v=d.data(); v.id=d.id; return v; }) : [];
@@ -1681,25 +1740,13 @@ async function loadSummary(){
   state.tasks.items = tasksItems;
   state.tasks.loading = false;
 
-  var journalSnap = await safe(refJournalColl().where('date','>=',fmtKey(addDays(today,-13))).where('date','<=',tk).orderBy('date','desc').limit(10).get());
-  var recentEntries = [];
-  if(journalSnap){
-    journalSnap.docs.forEach(function(d){
-      var data=d.data();
-      (data.entries||[]).forEach(function(e){ recentEntries.push({date:data.date, text:e.text, createdAt:e.createdAt}); });
-    });
-    recentEntries.sort(function(a,b){ return (b.date+b.createdAt).localeCompare(a.date+a.createdAt); });
-  }
-
   var bkey = monthKey(today.getFullYear(), today.getMonth());
   var budgetSnap = await safe(refBudgetDoc(bkey).get());
   var budgetDoc = (budgetSnap && budgetSnap.exists) ? budgetSnap.data() : null;
 
   state.summary = {
     loading:false,
-    today:todayTotals, week:weekTotals, month:monthTotals,
     activeCount:activeCount, doneWeek:doneWeek, completion:completion,
-    recentEntries:recentEntries.slice(0,3),
     budgetDoc:budgetDoc
   };
   renderMain();
@@ -1707,23 +1754,14 @@ async function loadSummary(){
 
 function renderSummary(){
   var s = state.summary;
-  var html = renderChampionCard();
-  html += renderCoachCard();
-  html += '<div class="card"><div class="theme-row"><span class="section-title" style="margin:0">Оформление</span><label class="theme-switch"><span>Светлая</span><input type="checkbox" data-action-field="theme-toggle" '+(state.theme==='dark'?'checked':'')+' aria-label="Включить тёмную тему"><span class="theme-slider"></span><span>Тёмная</span></label></div></div>';
+  var html = renderCoachCard();
+  html += renderChampionCard();
   if(s.loading){
     html += skeleton(3);
     html += skeleton(4);
     html += skeleton(3);
     return html;
   }
-
-  html += '<div class="card">';
-  html += '<div class="section-title">Финансы</div>';
-  html += '<div class="stat-grid">';
-  html += '<div class="stat-tile"><div class="label">Сегодня</div><div class="value '+(s.today.net>=0?'positive':'negative')+' mono">'+fmtSigned(s.today.net)+'</div></div>';
-  html += '<div class="stat-tile"><div class="label">Эта неделя</div><div class="value '+(s.week.net>=0?'positive':'negative')+' mono">'+fmtSigned(s.week.net)+'</div></div>';
-  html += '<div class="stat-tile"><div class="label">Этот месяц</div><div class="value '+(s.month.net>=0?'positive':'negative')+' mono">'+fmtSigned(s.month.net)+'</div></div>';
-  html += '</div></div>';
 
   html += '<div class="card">';
   html += '<div class="section-title">Дела</div>';
@@ -1747,17 +1785,6 @@ function renderSummary(){
     html += '<div class="row between"><span>Остаток по плану</span><span class="mono" style="font-weight:600;color:'+(after>=0?'var(--positive)':'var(--negative)')+'">'+fmtSigned(after)+'</span></div>';
     html += '</div>';
   }
-
-  html += '<div class="card">';
-  html += '<div class="section-title">Недавние успехи</div>';
-  if(!s.recentEntries.length){
-    html += '<div class="empty-state">Пока нет записей за последние две недели.</div>';
-  } else {
-    html += s.recentEntries.map(function(e){
-      return '<div class="entry-card"><div class="entry-time">'+fmtDateShort(e.date)+' · '+fmtTime(e.createdAt)+'</div><div class="entry-text">'+esc(e.text)+'</div></div>';
-    }).join('');
-  }
-  html += '</div>';
 
   html += '<div class="card">';
   html += '<div class="section-title">Резервная копия</div>';
@@ -1790,6 +1817,7 @@ document.getElementById('main-content').addEventListener('click', function(e){
   else if(a==='journal-prev-month'){ var s=state.journal; s.month--; if(s.month<0){s.month=11;s.year--;} s.selected=fmtKey(new Date(s.year,s.month,Math.min(parseKey(s.selected).getDate(),new Date(s.year,s.month+1,0).getDate()))); loadJournalMonth(); }
   else if(a==='journal-next-month'){ var s2=state.journal; s2.month++; if(s2.month>11){s2.month=0;s2.year++;} s2.selected=fmtKey(new Date(s2.year,s2.month,Math.min(parseKey(s2.selected).getDate(),new Date(s2.year,s2.month+1,0).getDate()))); loadJournalMonth(); }
   else if(a==='journal-select-day'){ loadJournalDay(btn.dataset.key); }
+  else if(a==='journal-toggle-calendar'){ state.journal.calendarOpen = !state.journal.calendarOpen; renderMain(); }
   else if(a==='delete-journal-entry'){ if(confirm('Удалить запись?')) deleteJournalEntry(btn.dataset.id); }
   else if(a==='edit-journal-entry-start'){ startEditJournalEntry(btn.dataset.id); }
   else if(a==='edit-journal-entry-cancel'){ cancelEditJournalEntry(); }
@@ -1833,6 +1861,7 @@ document.getElementById('main-content').addEventListener('click', function(e){
     doc.items = (doc.items||[]).filter(function(it){ return it.id!==btn.dataset.id; });
     saveBudget(doc);
   }
+  else if(a==='toggle-budget-item-paid'){ toggleBudgetItemPaid(btn.dataset.id); }
   else if(a==='toggle-champion-item'){ toggleChampionItem(btn.dataset.id); }
   else if(a==='champion-edit-start'){ startChampionEdit(); }
   else if(a==='champion-edit-cancel'){ cancelChampionEdit(); }
@@ -1971,9 +2000,19 @@ function boot(){
     var control = document.getElementById('account-control');
     control.replaceChildren();
     var name = document.createElement('span'); name.textContent = user.displayName || user.email || 'Аккаунт';
+    var themeLabel = document.createElement('label');
+    themeLabel.className = 'theme-switch header-theme-switch';
+    themeLabel.setAttribute('aria-label', 'Переключить тему оформления');
+    var themeInput = document.createElement('input');
+    themeInput.type = 'checkbox';
+    themeInput.checked = state.theme === 'dark';
+    themeInput.setAttribute('aria-label', 'Включить тёмную тему');
+    var themeSlider = document.createElement('span'); themeSlider.className = 'theme-slider';
+    themeLabel.append(themeInput, themeSlider);
+    themeInput.onchange = function(){ saveTheme(themeInput.checked ? 'dark' : 'light'); };
     var logout = document.createElement('button'); logout.textContent = 'Выйти';
     logout.onclick = function(){ signOut(_auth).catch(function(e){ console.error(e); toast('Не удалось выйти'); }); };
-    control.append(name, logout);
+    control.append(name, themeLabel, logout);
     renderTabbar();
     switchTab('summary');
   }, function(e){ console.error(e); document.getElementById('main-content').textContent='Ошибка входа. Обновите страницу.'; });
