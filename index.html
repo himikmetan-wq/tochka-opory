@@ -1385,7 +1385,7 @@ async function loadSummary(){
   var monthTotals = financeTotals(rows);
 
   var tasksSnap = await safe(refTasks().get());
-  var tasksItems = tasksSnap ? tasksSnap.docs.map(function(d){ return d.data(); }) : [];
+  var tasksItems = tasksSnap ? tasksSnap.docs.map(function(d){ var v=d.data(); v.id=d.id; return v; }) : [];
   var activeCount = tasksItems.filter(function(t){ return !t.done && !t.abandoned; }).length;
   var doneWeek = tasksItems.filter(function(t){ return t.done && t.doneAt && t.doneAt.slice(0,10)>=wk0; }).length;
   var completion = taskCounts(tasksItems);
