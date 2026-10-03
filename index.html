@@ -201,6 +201,27 @@ textarea.input{resize:vertical;min-height:44px;}
 .checkbox.checked::after{content:"";position:absolute;left:6px;top:2px;width:5px;height:10px;border:solid #fff;border-width:0 2px 2px 0;transform:rotate(40deg);}
 .task-text{flex:1;word-break:break-word;}
 .task-text.done{color:var(--text-muted);text-decoration:line-through;}
+
+.champion-card{background:linear-gradient(135deg,#123C33,#0A2620);border:1px solid #1E5C4C;color:#EAF7F2;box-shadow:var(--shadow);}
+.champion-title{font-size:13px;font-weight:700;letter-spacing:.02em;text-transform:uppercase;color:#9EDACB;margin-bottom:10px;}
+.champion-reward{background:rgba(46,230,197,.14);border:1px solid rgba(46,230,197,.35);border-radius:var(--radius-sm);padding:8px 12px;font-size:13px;font-weight:600;color:#6FF0D6;margin-bottom:10px;}
+.champion-item{display:flex;align-items:center;gap:10px;padding:8px 2px;border-bottom:1px solid rgba(255,255,255,.08);}
+.champion-item:last-child{border-bottom:none;}
+.champion-item .checkbox{border-color:rgba(255,255,255,.4);background:transparent;}
+.champion-item .checkbox.checked{background:#2EE6C5;border-color:#2EE6C5;}
+.champion-item .checkbox.checked::after{border-color:#0A2620;}
+.champion-item-text{flex:1;color:#EAF7F2;}
+.champion-item-text.done{color:#8FB8AE;text-decoration:line-through;}
+.champion-edit-row{display:flex;align-items:center;gap:8px;padding:6px 0;}
+.champion-edit-row .input{background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.25);color:#EAF7F2;}
+.champion-footer{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:10px;}
+.champion-link{background:none;border:none;color:#9EDACB;font-size:12px;cursor:pointer;padding:4px 0;text-decoration:underline;}
+.champion-streak-wrap{margin-top:14px;padding-top:12px;border-top:1px solid rgba(255,255,255,.1);}
+.champion-streak-label{font-size:11px;color:#8FB8AE;margin-bottom:6px;}
+.champion-dashes{display:flex;flex-wrap:wrap;gap:5px;}
+.champion-dash{width:16px;height:5px;border-radius:3px;background:#2EE6C5;box-shadow:0 0 6px 1px rgba(46,230,197,.85),0 0 2px rgba(46,230,197,1);}
+.champion-dash.future{background:rgba(255,255,255,.12);box-shadow:none;}
+
 details.done-section{margin-top:12px;}
 details.done-section summary{cursor:pointer;font-size:13px;color:var(--text-muted);font-weight:600;padding:4px 0;}
 
@@ -377,7 +398,7 @@ var FIREBASE_CONFIG = {
 };
 var SECRET_PREFIX = 'app_1828f9714064928f0aab3d8b';
 var OWNER_EMAIL = 'himikmetan@gmail.com';
-var BACKUP_COLLECTIONS = ['journal','tasks','finance','budget'];
+var BACKUP_COLLECTIONS = ['journal','tasks','finance','budget','champion','championLog'];
 var _fsApp = initializeApp(FIREBASE_CONFIG);
 var _fsDb = getFirestore(_fsApp);
 var _fsAuth = getAuth(_fsApp);
@@ -496,7 +517,8 @@ var state = {
   finance:{ period:'month', anchor:todayKey(), customFrom:todayKey(), customTo:todayKey(), rows:[], loading:true },
   budget:{ year:new Date().getFullYear(), month:new Date().getMonth(), doc:null, loading:true, actual:{income:0,expense:0} },
   summary:{ loading:true },
-  coach:{ index: initialCoachIndex() }
+  coach:{ index: initialCoachIndex() },
+  champion:{ loading:true, items:[], log:{}, streak:0, todayDone:false, editing:false, draftItems:null }
 };
 
 /* ---------- coach ---------- */
@@ -534,6 +556,9 @@ function refTasks(){ return db.collection('tasks'); }
 function refFinanceDoc(key){ return db.doc('finance/'+key); }
 function refFinanceColl(){ return db.collection('finance'); }
 function refBudgetDoc(key){ return db.doc('budget/'+key); }
+function refChampionDoc(){ return db.doc('champion/config'); }
+function refChampionLogDoc(key){ return db.doc('championLog/'+key); }
+function refChampionLogColl(){ return db.collection('championLog'); }
 
 async function safe(promise, failMsg){
   try{ return await promise; }
@@ -561,7 +586,7 @@ async function switchTab(tab){
   stopCoachRotation();
   renderTabbar();
   renderMain();
-  if(tab==='summary'){ loadSummary(); startCoachRotation(); }
+  if(tab==='summary'){ loadSummary(); loadChampion(); startCoachRotation(); }
   if(tab==='journal') loadJournalMonth();
   if(tab==='tasks') loadTasks();
   if(tab==='finance') loadFinance();
@@ -571,7 +596,7 @@ async function switchTab(tab){
 function renderMain(){
   var el = document.getElementById('main-content');
   if(!dbReady){ el.innerHTML = renderDbUnavailable(); return; }
-  if(state.tab==='summary') el.innerHTML = renderSummary();
+  if(state.tab==='summary'){ el.innerHTML = renderSummary(); initTaskDrag(); }
   else if(state.tab==='journal') el.innerHTML = renderJournal();
   else if(state.tab==='tasks'){ el.innerHTML = renderTasks(); initTaskDrag(); }
   else if(state.tab==='finance') el.innerHTML = renderFinance();
@@ -775,9 +800,8 @@ function taskCounts(items){
   return { done:done, abandoned:abandoned, index: total? done/total : null };
 }
 
-function renderTasks(){
-  var st = state.tasks;
-  var active = st.items.filter(function(t){ return !t.done && !t.abandoned; });
+function sortedActiveTasks(items){
+  var active = items.filter(function(t){ return !t.done && !t.abandoned; });
   active.sort(function(a,b){
     var ao = a.order, bo = b.order;
     if(ao==null && bo==null) return 0;
@@ -785,6 +809,17 @@ function renderTasks(){
     if(bo==null) return 1;
     return ao-bo;
   });
+  return active;
+}
+function renderActiveTaskListHTML(active, abandoningId){
+  if(!active.length){
+    return '<div class="empty-state">Активных задач нет. Добавьте то, что сейчас действительно актуально.</div>';
+  }
+  return '<div id="active-task-list">' + active.map(function(t){ return taskRow(t, abandoningId===t.id, true); }).join('') + '</div>';
+}
+function renderTasks(){
+  var st = state.tasks;
+  var active = sortedActiveTasks(st.items);
   var done = st.items.filter(function(t){ return t.done; }).sort(function(a,b){ return (b.doneAt||'').localeCompare(a.doneAt||''); });
   var abandoned = st.items.filter(function(t){ return t.abandoned; }).sort(function(a,b){ return (b.abandonedAt||'').localeCompare(a.abandonedAt||''); });
   var counts = taskCounts(st.items);
@@ -797,10 +832,8 @@ function renderTasks(){
 
   if(st.loading){
     html += '<div class="skeleton"></div><div class="skeleton" style="width:70%"></div>';
-  } else if(!active.length){
-    html += '<div class="empty-state">Активных задач нет. Добавьте то, что сейчас действительно актуально.</div>';
   } else {
-    html += '<div id="active-task-list">' + active.map(function(t){ return taskRow(t, st.abandoningId===t.id, true); }).join('') + '</div>';
+    html += renderActiveTaskListHTML(active, st.abandoningId);
   }
   html += '</div>';
 
@@ -908,6 +941,172 @@ function onTaskDragEnd(){
   var ids = Array.prototype.map.call(d.list.children, function(el){ return el.dataset.id; });
   taskDrag = null;
   reorderTasks(ids);
+}
+
+/* =========================================================
+   CHAMPION — ежедневные неотложные дела
+   ========================================================= */
+var CHAMPION_DEFAULT_ITEMS = [
+  { id:'water', text:'Стакан воды с подъёма' },
+  { id:'warmup', text:'Разминка' },
+  { id:'breakfast', text:'Завтрак чемпиона' }
+];
+var CHAMPION_LOG_DAYS_BACK = 400;
+
+function computeChampionStreak(items, log){
+  var itemIds = items.map(function(it){ return it.id; });
+  if(!itemIds.length) return { streak:0, todayDone:false };
+  function dayComplete(key){
+    var rec = log[key];
+    return !!rec && itemIds.every(function(id){ return rec.indexOf(id)!==-1; });
+  }
+  var today = todayDate();
+  var tKey = fmtKey(today);
+  var todayDone = dayComplete(tKey);
+  var streak = 0;
+  var cursor = todayDone ? today : addDays(today,-1);
+  while(dayComplete(fmtKey(cursor))){
+    streak++;
+    cursor = addDays(cursor,-1);
+  }
+  return { streak:streak, todayDone:todayDone };
+}
+
+async function loadChampion(){
+  state.champion.loading = true;
+  renderMain();
+  var snap = await safe(refChampionDoc().get(), 'Не удалось загрузить дела чемпиона');
+  var items;
+  if(snap && snap.exists && snap.data() && (snap.data().items||[]).length){
+    items = snap.data().items;
+  } else {
+    items = clone(CHAMPION_DEFAULT_ITEMS);
+    await safe(refChampionDoc().set({ items:items, updatedAt:nowISO() }));
+  }
+
+  var cutoff = fmtKey(addDays(todayDate(), -CHAMPION_LOG_DAYS_BACK));
+  var logSnap = await safe(refChampionLogColl().where('date','>=',cutoff).get());
+  var log = {};
+  if(logSnap){
+    logSnap.docs.forEach(function(d){
+      var data = d.data();
+      log[data.date] = data.doneIds || [];
+    });
+  }
+
+  var streakInfo = computeChampionStreak(items, log);
+  state.champion = {
+    loading:false, items:items, log:log,
+    streak:streakInfo.streak, todayDone:streakInfo.todayDone,
+    editing:false, draftItems:null
+  };
+  renderMain();
+}
+
+async function toggleChampionItem(id){
+  var c = state.champion;
+  var tKey = todayKey();
+  var current = (c.log[tKey] || []).slice();
+  var idx = current.indexOf(id);
+  if(idx!==-1) current.splice(idx,1); else current.push(id);
+  var ok = await safe(refChampionLogDoc(tKey).set({ date:tKey, doneIds:current, updatedAt:nowISO() }), 'Не удалось сохранить отметку');
+  if(ok===null) return;
+  c.log[tKey] = current;
+  var streakInfo = computeChampionStreak(c.items, c.log);
+  c.streak = streakInfo.streak;
+  c.todayDone = streakInfo.todayDone;
+  renderMain();
+}
+function startChampionEdit(){
+  state.champion.editing = true;
+  state.champion.draftItems = clone(state.champion.items);
+  renderMain();
+}
+function cancelChampionEdit(){
+  state.champion.editing = false;
+  state.champion.draftItems = null;
+  renderMain();
+}
+function addChampionDraftItem(){
+  if(!state.champion.draftItems) state.champion.draftItems = [];
+  state.champion.draftItems.push({ id:uid(), text:'' });
+  renderMain();
+}
+function removeChampionDraftItem(id){
+  state.champion.draftItems = (state.champion.draftItems||[]).filter(function(it){ return it.id!==id; });
+  renderMain();
+}
+function updateChampionDraftText(id, text){
+  var it = (state.champion.draftItems||[]).find(function(x){ return x.id===id; });
+  if(it) it.text = text;
+}
+async function saveChampionItems(){
+  var items = (state.champion.draftItems||[]).map(function(it){ return { id:it.id, text:(it.text||'').trim() }; }).filter(function(it){ return it.text; });
+  if(!items.length){ toast('Добавьте хотя бы одно дело'); return; }
+  var ok = await safe(refChampionDoc().set({ items:items, updatedAt:nowISO() }), 'Не удалось сохранить список дел');
+  if(ok===null) return;
+  state.champion.items = items;
+  state.champion.editing = false;
+  state.champion.draftItems = null;
+  var streakInfo = computeChampionStreak(items, state.champion.log);
+  state.champion.streak = streakInfo.streak;
+  state.champion.todayDone = streakInfo.todayDone;
+  renderMain();
+}
+function renderStreakDashes(n){
+  if(n<=0) return '<span class="hint" style="color:#8FB8AE">Пока нет серии — начните сегодня.</span>';
+  var cap = 60;
+  var shown = Math.min(n, cap);
+  var out = '';
+  for(var i=0;i<shown;i++) out += '<span class="champion-dash"></span>';
+  if(n>cap) out += '<span class="hint" style="color:#8FB8AE;margin-left:4px">+'+(n-cap)+'</span>';
+  return out;
+}
+function championDayWord(n){
+  var mod10 = n%10, mod100 = n%100;
+  if(mod100>=11 && mod100<=14) return 'дней';
+  if(mod10===1) return 'день';
+  if(mod10>=2 && mod10<=4) return 'дня';
+  return 'дней';
+}
+function renderChampionCard(){
+  var c = state.champion;
+  if(c.loading){
+    return '<div class="card champion-card"><div class="champion-title">Три дела чемпиона</div><div class="skeleton" style="background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.08)"></div></div>';
+  }
+  var items = c.editing ? (c.draftItems||[]) : c.items;
+  var tKey = todayKey();
+  var todayIds = c.log[tKey] || [];
+  var html = '<div class="card champion-card">';
+  html += '<div class="champion-title">Три дела чемпиона</div>';
+  if(!c.editing && c.todayDone) html += '<div class="champion-reward">🏆 Сегодня выполнен блок чемпиона!</div>';
+
+  if(c.editing){
+    html += '<form data-action="save-champion-items">';
+    html += items.map(function(it){
+      return '<div class="champion-edit-row"><input class="input grow" type="text" maxlength="80" value="'+esc(it.text)+'" data-champion-edit-id="'+esc(it.id)+'" placeholder="Дело">'
+        + '<button type="button" class="icon-btn danger" data-action="champion-remove-item" data-id="'+esc(it.id)+'" aria-label="Удалить">×</button></div>';
+    }).join('');
+    html += '<div class="btn-row" style="margin-top:8px"><button type="button" class="btn btn-ghost btn-sm" data-action="champion-add-item">+ добавить дело</button></div>';
+    html += '<div class="champion-footer"><button type="button" class="champion-link" data-action="champion-edit-cancel">Отмена</button><button type="submit" class="btn btn-primary btn-sm">Сохранить</button></div>';
+    html += '</form>';
+  } else {
+    if(!items.length){
+      html += '<div class="empty-state" style="color:#8FB8AE">Список пуст. Нажмите «редактировать», чтобы добавить дела.</div>';
+    } else {
+      html += items.map(function(it){
+        var done = todayIds.indexOf(it.id)!==-1;
+        return '<div class="champion-item"><button class="checkbox '+(done?'checked':'')+'" data-action="toggle-champion-item" data-id="'+esc(it.id)+'" aria-label="Отметить"></button>'
+          + '<span class="champion-item-text '+(done?'done':'')+'">'+esc(it.text)+'</span></div>';
+      }).join('');
+    }
+    html += '<div class="champion-footer"><button type="button" class="champion-link" data-action="champion-edit-start">✎ редактировать</button><span></span></div>';
+  }
+
+  html += '<div class="champion-streak-wrap"><div class="champion-streak-label">Серия: '+c.streak+' '+championDayWord(c.streak)+'</div>'
+    + '<div class="champion-dashes">'+renderStreakDashes(c.streak)+'</div></div>';
+  html += '</div>';
+  return html;
 }
 
 /* =========================================================
@@ -1190,6 +1389,8 @@ async function loadSummary(){
   var activeCount = tasksItems.filter(function(t){ return !t.done && !t.abandoned; }).length;
   var doneWeek = tasksItems.filter(function(t){ return t.done && t.doneAt && t.doneAt.slice(0,10)>=wk0; }).length;
   var completion = taskCounts(tasksItems);
+  state.tasks.items = tasksItems;
+  state.tasks.loading = false;
 
   var journalSnap = await safe(refJournalColl().where('date','>=',fmtKey(addDays(today,-13))).where('date','<=',tk).orderBy('date','desc').limit(10).get());
   var recentEntries = [];
@@ -1217,7 +1418,8 @@ async function loadSummary(){
 
 function renderSummary(){
   var s = state.summary;
-  var html = renderCoachCard();
+  var html = renderChampionCard();
+  html += renderCoachCard();
   if(s.loading){
     html += skeleton(3);
     html += skeleton(4);
@@ -1240,6 +1442,9 @@ function renderSummary(){
   if(s.completion.index!==null){
     html += '<div class="row between"><span>Индекс завершения</span><span class="mono" style="font-weight:700">'+Math.round(s.completion.index*100)+'%</span></div>';
     html += '<div class="hint">'+s.completion.done+' закрыто · '+s.completion.abandoned+' заброшено осознанно</div>';
+  }
+  if(!state.tasks.loading){
+    html += '<div style="margin-top:10px;border-top:1px solid var(--border);padding-top:6px">' + renderActiveTaskListHTML(sortedActiveTasks(state.tasks.items), state.tasks.abandoningId) + '</div>';
   }
   html += '</div>';
 
@@ -1319,6 +1524,17 @@ document.getElementById('main-content').addEventListener('click', function(e){
     doc.items = (doc.items||[]).filter(function(it){ return it.id!==btn.dataset.id; });
     saveBudget(doc);
   }
+  else if(a==='toggle-champion-item'){ toggleChampionItem(btn.dataset.id); }
+  else if(a==='champion-edit-start'){ startChampionEdit(); }
+  else if(a==='champion-edit-cancel'){ cancelChampionEdit(); }
+  else if(a==='champion-add-item'){ addChampionDraftItem(); }
+  else if(a==='champion-remove-item'){ removeChampionDraftItem(btn.dataset.id); }
+});
+
+document.getElementById('main-content').addEventListener('input', function(e){
+  var el = e.target.closest('[data-champion-edit-id]');
+  if(!el) return;
+  updateChampionDraftText(el.dataset.championEditId, el.value);
 });
 
 document.getElementById('main-content').addEventListener('change', function(e){
@@ -1342,7 +1558,10 @@ document.getElementById('main-content').addEventListener('submit', function(e){
   var a = form.dataset.action;
   var fd = new FormData(form);
 
-  if(a==='add-journal-entry'){
+  if(a==='save-champion-items'){
+    saveChampionItems();
+  }
+  else if(a==='add-journal-entry'){
     var text = (fd.get('text')||'').trim();
     if(!text) return;
     addJournalEntry(text);
