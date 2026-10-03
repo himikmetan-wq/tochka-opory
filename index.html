@@ -337,10 +337,6 @@ a{color:var(--accent);}
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M8 5h12M8 12h12M8 19h12M3 5l1 1 2-2M3 12l1 1 2-2M3 19l1 1 2-2"/></svg>
         <span>Трекер дел</span>
       </button>
-      <button class="tab-btn" data-tab="notes" aria-label="Заметки">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3h14v18H5zM8 8h8M8 12h8M8 16h5"/></svg>
-        <span>Заметки</span>
-      </button>
       <button class="tab-btn" data-tab="finance" aria-label="Финансы">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="6" width="17" height="13" rx="2.5"/><path d="M3.5 10h17"/><circle cx="16.5" cy="14" r="1.2" fill="currentColor" stroke="none"/></svg>
         <span>Финансы</span>
@@ -699,11 +695,10 @@ async function switchTab(tab){
   stopCoachRotation();
   renderTabbar();
   renderMain();
-  if(tab==='summary'){ loadSummary(); loadChampion(); startCoachRotation(); }
+  if(tab==='summary'){ loadSummary(); loadChampion(); loadNotes(); startCoachRotation(); }
   if(tab==='journal'){ loadJournalMonth(); loadJournalStats(); }
   if(tab==='tasks') loadTasks();
   if(tab==='tracker') loadTracker();
-  if(tab==='notes') loadNotes();
   if(tab==='finance') loadFinance();
   if(tab==='budget') loadBudget();
 }
@@ -711,11 +706,10 @@ async function switchTab(tab){
 function renderMain(){
   var el = document.getElementById('main-content');
   if(!dbReady){ el.innerHTML = renderDbUnavailable(); return; }
-  if(state.tab==='summary'){ el.innerHTML = renderSummary(); initTaskDrag(); }
+  if(state.tab==='summary'){ el.innerHTML = renderSummary(); }
   else if(state.tab==='journal') el.innerHTML = renderJournal();
   else if(state.tab==='tasks'){ el.innerHTML = renderTasks(); initTaskDrag(); }
   else if(state.tab==='tracker'){ el.innerHTML = renderTracker(); initTrackerSubtaskDrag(); }
-  else if(state.tab==='notes') el.innerHTML = renderNotes();
   else if(state.tab==='finance') el.innerHTML = renderFinance();
   else if(state.tab==='budget') el.innerHTML = renderBudget();
 }
@@ -1729,16 +1723,6 @@ async function loadSummary(){
   state.summary.loading = true;
   renderMain();
   var today = todayDate();
-  var mon = mondayOf(today);
-  var wk0 = fmtKey(mon);
-
-  var tasksSnap = await safe(refTasks().get());
-  var tasksItems = tasksSnap ? tasksSnap.docs.filter(function(d){return !d.data().kind;}).map(function(d){ var v=d.data(); v.id=d.id; return v; }) : [];
-  var activeCount = tasksItems.filter(function(t){ return !t.done && !t.abandoned; }).length;
-  var doneWeek = tasksItems.filter(function(t){ return t.done && t.doneAt && t.doneAt.slice(0,10)>=wk0; }).length;
-  var completion = taskCounts(tasksItems);
-  state.tasks.items = tasksItems;
-  state.tasks.loading = false;
 
   var bkey = monthKey(today.getFullYear(), today.getMonth());
   var budgetSnap = await safe(refBudgetDoc(bkey).get());
@@ -1746,7 +1730,6 @@ async function loadSummary(){
 
   state.summary = {
     loading:false,
-    activeCount:activeCount, doneWeek:doneWeek, completion:completion,
     budgetDoc:budgetDoc
   };
   renderMain();
@@ -1763,18 +1746,7 @@ function renderSummary(){
     return html;
   }
 
-  html += '<div class="card">';
-  html += '<div class="section-title">Дела</div>';
-  html += '<div class="row between"><span>Активных задач</span><span class="mono" style="font-weight:600">'+s.activeCount+'</span></div>';
-  html += '<div class="row between"><span>Выполнено за неделю</span><span class="mono" style="font-weight:600">'+s.doneWeek+'</span></div>';
-  if(s.completion.index!==null){
-    html += '<div class="row between"><span>Индекс завершения</span><span class="mono" style="font-weight:700">'+Math.round(s.completion.index*100)+'%</span></div>';
-    html += '<div class="hint">'+s.completion.done+' закрыто · '+s.completion.abandoned+' заброшено осознанно</div>';
-  }
-  if(!state.tasks.loading){
-    html += '<div style="margin-top:10px;border-top:1px solid var(--border);padding-top:6px">' + renderActiveTaskListHTML(sortedActiveTasks(state.tasks.items), state.tasks.abandoningId) + '</div>';
-  }
-  html += '</div>';
+  html += renderNotes();
 
   if(s.budgetDoc){
     var planned = (s.budgetDoc.items||[]).reduce(function(a,it){return a+it.amount;},0);
