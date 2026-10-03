@@ -188,9 +188,12 @@ textarea.input{resize:vertical;min-height:44px;}
 .entry-card .entry-time{font-size:11px;color:var(--text-muted);margin-bottom:3px;}
 .entry-card .entry-text{white-space:pre-wrap;}
 
-.coach-card{background:linear-gradient(135deg,var(--accent-soft),var(--surface));border-color:var(--accent-soft);}
+.coach-card{position:relative;overflow:hidden;padding:0;border-color:var(--accent-soft);background-color:var(--accent-soft);min-height:208px;display:flex;flex-direction:column;justify-content:flex-end;}
+.coach-bg{position:absolute;inset:0;background-size:cover;background-position:center;background-repeat:no-repeat;transition:opacity .18s ease;}
+.coach-bg.fade{opacity:0;}
+.coach-content{position:relative;z-index:1;padding:54px 18px 16px;}
 .coach-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--accent-strong);margin-bottom:8px;}
-.coach-text{font-family:'Unbounded',sans-serif;font-size:16px;line-height:1.4;font-weight:600;min-height:66px;opacity:1;transition:opacity .18s ease;}
+.coach-text{font-family:'Unbounded',sans-serif;font-size:16px;line-height:1.4;font-weight:600;min-height:66px;opacity:1;transition:opacity .18s ease;color:var(--accent-strong);}
 .coach-text.fade{opacity:0;}
 .coach-controls{display:flex;align-items:center;gap:10px;margin-top:12px;}
 .theme-row{display:flex;align-items:center;justify-content:space-between;gap:12px;}
@@ -599,15 +602,25 @@ var state = {
 };
 
 /* ---------- coach ---------- */
+var COACH_BG_IMAGES = ['1494548162494-384bba4ab999','1464822759023-fed622ff2c3b','1470252649378-9c29740c9fa8','1518837695005-2083093ee35b','1571008887538-b36bb32f4571','1592859600972-1b0834d83747','1628498188904-036f5e25e93e','1540979388789-6cee28a1cdc9','1554629947-334ff61d85dc','1475924156734-496f6cac6ec1','1565214975484-3cfa9e56f914','1727094141271-9bea5bc8c757','1758438919146-f3f59a6d2544','1628498188873-579210ce622e','1500534623283-312aade485b7','1454496522488-7a8e488e8606','1575388913236-67fa448091a0','1616141893496-fbc65370493e','1744706908540-c7450689a30a','1603492501465-2d1bf970b974','1595520519880-a86c48ea536c','1604223190546-a43e4c7f29d7','1480497490787-505ec076689f','1503803548695-c2a7b4a5b875','1505142468610-359e7d316be0','1718248028293-934f04a578db','1623967680551-3e4694e2c9ad','1616712134411-6b6ae89bc3ba','1500964757637-c85e8a162699','1519681393784-d120267933ba','1565643355044-000fbad87cc5','1552674605-db6ffd4facb5','1505635725851-c2cfe9e29112','1596016691838-70260f1e21c6','1519414442781-fbd745c5b497','1570641963303-92ce4845ed4c','1500382017468-9049fed747ef','1559827260-dc66d52bef19','1590333748338-d629e4564ad9','1600159990546-ede73b5e5708','1606247357835-d27fe83fc6a3','1757269267274-085b02b0ce8a','1506905925346-21bda4d32df4','1420136390439-1482fc2ce4b9','1513553404607-988bf2703777','1549896869-ca27eeffe4fb','1566231270035-0aaca1fd2bbf','1522124624696-7ea32eb9592c','1558883493-8b86ff880fec','1490682143684-14369e18dce8','1498330177096-689e3fb901ca','1559166631-ef208440c75a'];
+function coachBgUrl(index){
+  var id = COACH_BG_IMAGES[index % COACH_BG_IMAGES.length];
+  return 'https://images.unsplash.com/photo-'+id+'?w=640&q=60&auto=format&fit=crop';
+}
+function coachBgStyle(index){
+  return 'background-image:linear-gradient(to bottom, rgba(0,0,0,0) 0%, var(--accent-soft) 78%, var(--accent-soft) 100%), url(\''+coachBgUrl(index)+'\');';
+}
 function renderCoachCard(){
   return '<div class="card coach-card">'
+    + '<div class="coach-bg" id="coach-bg" style="'+coachBgStyle(state.coach.index)+'"></div>'
+    + '<div class="coach-content">'
     + '<div class="coach-label">Наставник</div>'
     + '<div class="coach-text" id="coach-phrase">'+esc(COACH_TIPS[state.coach.index])+'</div>'
     + '<div class="coach-controls">'
     + '<button class="icon-btn" data-action="coach-prev" aria-label="Предыдущий совет">‹</button>'
     + '<span class="muted mono" id="coach-counter">'+(state.coach.index+1)+'/'+COACH_TIPS.length+'</span>'
     + '<button class="icon-btn" data-action="coach-next" aria-label="Следующий совет">›</button>'
-    + '</div></div>';
+    + '</div></div></div>';
 }
 function stepCoach(dir, isAuto){
   if(dir<0){
@@ -624,13 +637,16 @@ function stepCoach(dir, isAuto){
   state.coach.index=coachHistory[coachPosition];
   var textEl = document.getElementById('coach-phrase');
   var counterEl = document.getElementById('coach-counter');
+  var bgEl = document.getElementById('coach-bg');
   var apply = function(){
     if(textEl) textEl.textContent = COACH_TIPS[state.coach.index];
     if(counterEl) counterEl.textContent = (state.coach.index+1)+'/'+COACH_TIPS.length;
+    if(bgEl) bgEl.setAttribute('style', coachBgStyle(state.coach.index));
   };
   if(textEl && !REDUCED_MOTION){
     textEl.classList.add('fade');
-    setTimeout(function(){ apply(); textEl.classList.remove('fade'); }, 180);
+    if(bgEl) bgEl.classList.add('fade');
+    setTimeout(function(){ apply(); textEl.classList.remove('fade'); if(bgEl) bgEl.classList.remove('fade'); }, 180);
   } else { apply(); }
   if(!isAuto) startCoachRotation();
 }
