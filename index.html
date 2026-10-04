@@ -357,10 +357,74 @@ a{color:var(--accent);}
 .file-btn input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;}
 
 @media(prefers-reduced-motion:reduce){.skeleton{animation:none;}}
+
+/* First-load focus sequence */
+.boot-splash{position:fixed;inset:0;z-index:2000;display:grid;place-items:center;background:#103c33;color:#f6f3ec;overflow:hidden;padding:28px;transition:opacity .4s ease,transform .6s cubic-bezier(.2,.7,.2,1);font-family:inherit;}
+.boot-splash::before{content:"";position:absolute;inset:-25%;background:radial-gradient(ellipse at 50% 42%,rgba(217,167,92,.12),transparent 48%);animation:boot-glow 4s ease-in-out infinite alternate;}
+.boot-splash::after{content:"";position:absolute;width:min(85vw,460px);aspect-ratio:1;border:1px solid rgba(246,243,236,.06);border-radius:50%;box-shadow:0 0 0 54px rgba(246,243,236,.025),0 0 0 108px rgba(246,243,236,.018);}
+.boot-splash.leaving{opacity:0;transform:scale(1.08);pointer-events:none;}
+.boot-focus{position:relative;z-index:1;text-align:center;width:100%;max-width:420px;}
+.boot-brand{font-size:10px;letter-spacing:.25em;text-transform:uppercase;color:#a3bdb3;margin-bottom:38px;}
+.boot-compass{width:92px;height:92px;margin:0 auto 32px;display:block;overflow:visible;}
+.boot-ring{stroke-dasharray:265;stroke-dashoffset:265;animation:boot-ring 1.4s ease forwards;}
+.boot-needle{transform-origin:50px 50px;animation:boot-needle 1.5s cubic-bezier(.16,1,.3,1) both;}
+.boot-title{font-size:clamp(25px,7vw,36px);font-weight:600;letter-spacing:-.03em;line-height:1.2;margin:0 0 14px;}
+.boot-title span{display:block;animation:boot-rise .6s both;}
+.boot-title span:nth-child(2){animation-delay:.18s;color:#d9a75c;}
+.boot-copy{font-size:14px;line-height:1.6;color:#b3c8bf;margin:0 auto;max-width:300px;animation:boot-rise .7s .3s both;}
+.boot-steps{display:flex;justify-content:center;gap:18px;margin-top:34px;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#b3c8bf;}
+.boot-steps span{animation:boot-rise .7s both;}
+.boot-steps span:nth-child(2){animation-delay:.3s;}
+.boot-steps span:nth-child(3){animation-delay:.6s;color:#d9a75c;}
+.boot-status{margin-top:36px;font-size:11px;color:#8fac9f;display:flex;justify-content:center;align-items:center;gap:8px;}
+.boot-pulse{width:5px;height:5px;border-radius:50%;background:#d9a75c;animation:boot-pulse 1.2s infinite;}
+@keyframes boot-ring{to{stroke-dashoffset:0;}}
+@keyframes boot-needle{from{opacity:0;transform:rotate(-100deg) scale(.6);}to{opacity:1;transform:rotate(0) scale(1);}}
+@keyframes boot-rise{from{opacity:0;transform:translateY(12px);}to{opacity:1;transform:translateY(0);}}
+@keyframes boot-glow{to{opacity:.5;transform:scale(1.15);}}
+@keyframes boot-pulse{50%{opacity:.25;}}
+@media(prefers-reduced-motion:reduce){.boot-splash,.boot-splash::before,.boot-focus *{animation:none!important;transition:none!important;}.boot-ring{stroke-dashoffset:0;}}
+
 </style>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;600;700&family=Golos+Text:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap">
 </head>
 <body>
+
+<div id="boot-splash" class="boot-splash" role="status" aria-live="polite" aria-label="Загрузка Точки опоры">
+  <div class="boot-focus">
+    <div class="boot-brand">Точка опоры</div>
+    <svg class="boot-compass" viewBox="0 0 100 100" fill="none" aria-hidden="true">
+      <circle cx="50" cy="50" r="42" stroke="#f6f3ec" stroke-opacity=".12" stroke-width="1.5"/>
+      <circle class="boot-ring" cx="50" cy="50" r="42" stroke="#f6f3ec" stroke-width="1.5" transform="rotate(-90 50 50)"/>
+      <path d="M50 2v5M98 50h-5M50 98v-5M2 50h5" stroke="#d9a75c" stroke-width="2"/>
+      <g class="boot-needle"><path d="M66 27 56 56 34 73 44 44Z" fill="#f6f3ec"/><path d="M66 27 56 56 44 44Z" fill="#d9a75c"/></g>
+      <circle cx="50" cy="50" r="2.5" fill="#103c33"/>
+    </svg>
+    <h1 class="boot-title"><span>Держи фокус.</span><span>Доводи до конца.</span></h1>
+    <p class="boot-copy">Каждое завершённое дело —<br>ещё одна точка опоры.</p>
+    <div class="boot-steps" aria-hidden="true"><span>Фокус</span><span>Действие</span><span>Результат</span></div>
+    <div class="boot-status"><span class="boot-pulse" aria-hidden="true"></span><span id="boot-status-text">Настраиваем фокус…</span></div>
+  </div>
+</div>
+<script>
+(function(){
+  var timer;
+  window.finishBootSplash=function(){
+    clearTimeout(timer);
+    var el=document.getElementById('boot-splash');
+    if(!el || el.classList.contains('leaving'))return;
+    el.classList.add('leaving');
+    setTimeout(function(){el.remove();},650);
+  };
+  window.setBootStatus=function(text){var el=document.getElementById('boot-status-text');if(el)el.textContent=text;};
+  timer=setTimeout(function(){
+    var main=document.getElementById('main-content');
+    if(main && !main.textContent.trim())main.textContent='Не удалось загрузить приложение. Проверьте интернет и обновите страницу.';
+    window.finishBootSplash();
+  },12000);
+})();
+</script>
+
 
 <div id="app">
   <header class="app-header">
@@ -783,7 +847,7 @@ async function switchTab(tab){
   stopCoachRotation();
   renderTabbar();
   renderMain();
-  if(tab==='summary'){ loadSummary(); loadChampion(); loadNotes(); startCoachRotation(); }
+  if(tab==='summary'){ startCoachRotation(); return Promise.all([loadSummary(),loadChampion(),loadNotes()]); }
   if(tab==='journal'){ loadJournalMonth(); loadJournalStats(); }
   if(tab==='tasks') loadTasks();
   if(tab==='tracker') loadTracker();
@@ -2209,7 +2273,8 @@ function boot(){
   onAuthStateChanged(_auth, async function(user){
     activeUser = user;
     applyTheme('light');
-    if(!user){ showLogin(); return; }
+    if(!user){ showLogin(); window.finishBootSplash(); return; }
+    window.setBootStatus('Собираем ваши дела и победы…');
     document.getElementById('main-content').innerHTML = '<div class="card empty-state">Проверяем и переносим записи…</div>';
     try { await migrateLegacyData(user); }
     catch(e){
@@ -2224,6 +2289,7 @@ function boot(){
       retryBtn.onclick = function(){ boot(); };
       card.append(p, retryBtn);
       box.appendChild(card);
+      window.finishBootSplash();
       return;
     }
     if(_auth.currentUser?.uid !== user.uid) return;
@@ -2245,8 +2311,9 @@ function boot(){
     logout.onclick = function(){ signOut(_auth).catch(function(e){ console.error(e); toast('Не удалось выйти'); }); };
     control.append(name, themeLabel, logout);
     renderTabbar();
-    switchTab('summary');
-  }, function(e){ console.error(e); document.getElementById('main-content').textContent='Ошибка входа. Обновите страницу.'; });
+    try{ await switchTab('summary'); }
+    finally{ window.finishBootSplash(); }
+  }, function(e){ console.error(e); document.getElementById('main-content').textContent='Ошибка входа. Обновите страницу.'; window.finishBootSplash(); });
 }
 boot();
 
