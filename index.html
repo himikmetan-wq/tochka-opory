@@ -1938,7 +1938,6 @@ function renderBudget(){
   }
   html += '<div class="divider"></div>';
   html += '<div class="row between"><span>Итого доп. расходов</span><span class="mono" style="font-weight:600">'+fmtBudgetMoney(extraPlanned)+'</span></div>';
-  html += '<div class="row between"><span>Остаток после месяца (план)</span><span class="mono" style="font-weight:700;color:'+(afterMonth>=0?'var(--positive)':'var(--negative)')+'">'+fmtBudgetSigned(afterMonth)+'</span></div>';
   html += '</div>';
 
   return html;
