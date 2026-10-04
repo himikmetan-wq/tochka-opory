@@ -1716,9 +1716,10 @@ async function saveBudget(doc){
   if(ok!==null){ state.budget.doc = doc; toast('Сохранено'); renderMain(); }
   return ok!==null;
 }
-async function toggleBudgetItemPaid(id){
+async function toggleBudgetItemPaid(id, isExtra){
   var doc = clone(state.budget.doc || emptyBudgetDoc());
-  doc.items = (doc.items||[]).map(function(it){ return it.id===id ? Object.assign({}, it, {paid: !it.paid}) : it; });
+  var list = isExtra ? 'extraItems' : 'items';
+  doc[list] = (doc[list]||[]).map(function(it){ return it.id===id ? Object.assign({}, it, {paid: !it.paid}) : it; });
   doc.updatedAt = nowISO();
   var key = monthKey(state.budget.year, state.budget.month);
   var ok = await safe(refBudgetDoc(key).set(doc), 'Не удалось сохранить отметку');
@@ -1778,6 +1779,7 @@ function renderBudget(){
       + '</div>';
   }
   html += '<div class="row between budget-meta-required"><span class="muted">Требуется на месяц</span><span class="mono budget-meta-value" style="font-weight:700">'+fmtMoney(planned)+'</span></div>';
+  html += '<div class="row between"><span class="muted">Доходов за текущий месяц</span><span class="mono budget-meta-value" style="font-weight:700;color:var(--positive)">'+fmtMoney(st.actual.income)+'</span></div>';
   html += '<div class="btn-row">';
   if(st.editingMeta) html += '<button type="button" class="champion-link" data-action="budget-edit-meta-cancel">Отмена</button>';
   html += '<button type="submit" class="btn btn-primary btn-sm">Сохранить</button>';
@@ -1801,9 +1803,10 @@ function renderBudget(){
         + '<span class="name">'+esc(it.name)+'</span><span class="amount mono">'+fmtMoney(it.amount)+'</span><button class="icon-btn danger" data-action="delete-budget-item" data-id="'+it.id+'">×</button></div>';
     }).join('');
   }
-  var paidSum = (doc.items||[]).filter(function(it){ return it.paid; }).reduce(function(s,it){ return s+it.amount; },0);
+  var paidSum = (doc.items||[]).concat(doc.extraItems||[]).filter(function(it){ return it.paid; }).reduce(function(s,it){ return s+it.amount; },0);
   html += '<div class="divider"></div>';
   html += '<div class="row between"><span>Итого плановых трат</span><span class="mono" style="font-weight:600">'+fmtMoney(itemsPlanned)+'</span></div>';
+  html += '<div class="row between"><span>Итого доп. трат</span><span class="mono" style="font-weight:600">'+fmtMoney(extraPlanned)+'</span></div>';
   html += '<div class="row between"><span>Вычеркнуто (оплачено)</span><span class="mono" style="font-weight:600;color:var(--positive)">'+fmtMoney(paidSum)+'</span></div>';
   html += '</div>';
 
@@ -1818,7 +1821,8 @@ function renderBudget(){
     html += '<div class="empty-state">Список пуст — добавьте внеплановые расходы на этот месяц.</div>';
   } else {
     html += doc.extraItems.map(function(it){
-      return '<div class="budget-item-row">'
+      return '<div class="budget-item-row'+(it.paid?' paid':'')+'">'
+        + '<button class="checkbox '+(it.paid?'checked':'')+'" type="button" data-action="toggle-budget-extra-item-paid" data-id="'+it.id+'" aria-label="Отметить оплаченным"></button>'
         + '<span class="name">'+esc(it.name)+'</span><span class="amount mono">'+fmtMoney(it.amount)+'</span><button class="icon-btn danger" data-action="delete-budget-extra-item" data-id="'+it.id+'">×</button></div>';
     }).join('');
   }
@@ -1827,17 +1831,6 @@ function renderBudget(){
   html += '<div class="row between"><span>Остаток после месяца (план)</span><span class="mono" style="font-weight:700;color:'+(afterMonth>=0?'var(--positive)':'var(--negative)')+'">'+fmtSigned(afterMonth)+'</span></div>';
   html += '</div>';
 
-  html += '<div class="card">';
-  html += '<div class="section-title">План / факт за месяц</div>';
-  html += '<div class="stat-grid">';
-  html += '<div class="stat-tile"><div class="label">Доход план</div><div class="value mono">'+fmtMoney(doc.plannedIncome||0)+'</div></div>';
-  html += '<div class="stat-tile"><div class="label">Доход факт</div><div class="value positive mono">'+fmtMoney(st.actual.income)+'</div></div>';
-  html += '<div class="stat-tile"><div class="label">Остаток план</div><div class="value '+(afterMonth>=0?'positive':'negative')+' mono">'+fmtSigned(afterMonth)+'</div></div>';
-  html += '<div class="stat-tile"><div class="label">Траты план</div><div class="value mono">'+fmtMoney(planned)+'</div></div>';
-  html += '<div class="stat-tile"><div class="label">Траты факт</div><div class="value negative mono">'+fmtMoney(st.actual.expense)+'</div></div>';
-  html += '<div class="stat-tile"><div class="label">Разница факт</div><div class="value '+((st.actual.income-st.actual.expense)>=0?'positive':'negative')+' mono">'+fmtSigned(st.actual.income-st.actual.expense)+'</div></div>';
-  html += '</div>';
-  html += '</div>';
   return html;
 }
 
@@ -1959,6 +1952,7 @@ document.getElementById('main-content').addEventListener('click', function(e){
     saveBudget(doc);
   }
   else if(a==='toggle-budget-item-paid'){ toggleBudgetItemPaid(btn.dataset.id); }
+  else if(a==='toggle-budget-extra-item-paid'){ toggleBudgetItemPaid(btn.dataset.id, true); }
   else if(a==='budget-edit-meta-start'){ state.budget.editingMeta = true; renderMain(); }
   else if(a==='budget-edit-meta-cancel'){ state.budget.editingMeta = false; renderMain(); }
   else if(a==='delete-budget-extra-item'){
