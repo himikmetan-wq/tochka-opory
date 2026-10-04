@@ -289,6 +289,11 @@ textarea.input{resize:vertical;min-height:44px;}
 .tracker-item:first-of-type{border-top:0;}
 .tracker-subtask{display:flex;align-items:center;gap:8px;padding:7px 0 7px 10px;}
 .tracker-subtask .task-text{font-size:13.5px;}
+.subtask-actions{display:flex;align-items:center;gap:0;flex:none;}
+.subtask-actions .icon-btn{padding:4px 3px;font-size:16px;}
+.budget-add-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(72px,120px);gap:8px;}
+.budget-add-row .input{min-width:0;width:100%;max-width:none!important;}
+.budget-add-row > button{grid-column:1 / -1;width:100%;height:32px;padding:2px 12px;border-radius:999px;font-size:22px;line-height:1;}
 .note-text{white-space:pre-wrap;overflow-wrap:anywhere;}
 .recording{background:var(--negative-soft);color:var(--negative);}
 .mic-btn{width:50px;height:44px;justify-content:center;padding:4px;background:#fff;color:#22282a;border:1px solid var(--border);border-radius:10px;}
@@ -1270,7 +1275,7 @@ function trackerSubtaskRow(t,s){
     + '<span class="drag-handle" data-drag-handle aria-label="Изменить порядок шага" title="Потяните, чтобы изменить порядок">'
     + '<svg viewBox="0 0 24 24" width="16" height="16"><circle cx="8" cy="6" r="1.6" fill="currentColor"/><circle cx="16" cy="6" r="1.6" fill="currentColor"/><circle cx="8" cy="12" r="1.6" fill="currentColor"/><circle cx="16" cy="12" r="1.6" fill="currentColor"/><circle cx="8" cy="18" r="1.6" fill="currentColor"/><circle cx="16" cy="18" r="1.6" fill="currentColor"/></svg>'
     + '</span>'
-    + '<button class="checkbox '+(s.done?'checked':'')+'" data-action="toggle-subtask" data-id="'+t.id+'" data-subid="'+s.id+'" aria-label="'+(s.done?'Снять отметку':'Выполнить подзадачу')+'"></button><span class="task-text '+(s.done?'done':'')+'">'+esc(s.text)+'</span><button class="icon-btn" data-action="edit-subtask-start" data-id="'+t.id+'" data-subid="'+s.id+'" aria-label="Редактировать подзадачу">✎</button><button class="icon-btn danger" data-action="delete-subtask" data-id="'+t.id+'" data-subid="'+s.id+'" aria-label="Удалить подзадачу">×</button></div>';
+    + '<button class="checkbox '+(s.done?'checked':'')+'" data-action="toggle-subtask" data-id="'+t.id+'" data-subid="'+s.id+'" aria-label="'+(s.done?'Снять отметку':'Выполнить подзадачу')+'"></button><span class="task-text '+(s.done?'done':'')+'">'+esc(s.text)+'</span><span class="subtask-actions"><button class="icon-btn" data-action="edit-subtask-start" data-id="'+t.id+'" data-subid="'+s.id+'" aria-label="Редактировать подзадачу">✎</button><button class="icon-btn danger" data-action="delete-subtask" data-id="'+t.id+'" data-subid="'+s.id+'" aria-label="Удалить подзадачу">×</button></span></div>';
 }
 function renderTracker(){
   var st=state.tracker,html='<div class="card"><div class="section-title">Трекер длинных дел</div><div class="hint" style="margin-bottom:12px">Разбей большое дело на шаги. Когда все шаги выполнены, дело завершится и появится в успехах.</div>';
@@ -1902,7 +1907,7 @@ function renderBudget(){
 
   html += '<div class="card">';
   html += '<div class="section-title">Регулярные платежи и траты</div>';
-  html += '<form class="add-row" data-action="add-budget-item">';
+  html += '<form class="add-row budget-add-row" data-action="add-budget-item">';
   html += '<input class="input grow" type="text" name="name" maxlength="80" placeholder="Название" required>';
   html += '<input class="input" style="max-width:120px" type="number" name="amount" min="0" step="1" placeholder="Сумма" required>';
   html += '<button type="submit" class="btn btn-primary btn-sm">+</button>';
@@ -1921,7 +1926,7 @@ function renderBudget(){
 
   html += '<div class="card">';
   html += '<div class="section-title">Дополнительные плановые расходы</div>';
-  html += '<form class="add-row" data-action="add-budget-extra-item">';
+  html += '<form class="add-row budget-add-row" data-action="add-budget-extra-item">';
   html += '<input class="input grow" type="text" name="name" maxlength="80" placeholder="Название" required>';
   html += '<input class="input" style="max-width:120px" type="number" name="amount" min="0" step="1" placeholder="Сумма" required>';
   html += '<button type="submit" class="btn btn-primary btn-sm">+</button>';
