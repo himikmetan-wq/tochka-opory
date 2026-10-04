@@ -217,12 +217,15 @@ textarea.input{resize:vertical;min-height:44px;}
 .task-row.stacked{flex-direction:column;align-items:flex-start;gap:4px;}
 .task-row .task-main{display:flex;align-items:center;gap:10px;width:100%;}
 
-.task-row{display:flex;align-items:center;gap:10px;padding:10px 2px;border-bottom:1px solid var(--border);background:var(--surface);}
+.task-row{display:flex;align-items:flex-start;gap:7px;padding:10px 2px;border-bottom:1px solid var(--border);background:var(--surface);}
 .task-row:last-child{border-bottom:none;}
 .task-row.dragging-placeholder{opacity:0;}
 .task-row-drag-clone{box-shadow:var(--shadow);border-radius:var(--radius-sm);z-index:9999;pointer-events:none;opacity:.97;border-bottom:none !important;}
-.drag-handle{display:flex;align-items:center;justify-content:center;width:22px;height:22px;flex:none;color:var(--text-muted);cursor:grab;touch-action:none;-webkit-user-select:none;user-select:none;}
+.drag-handle{display:flex;align-items:center;justify-content:center;width:15px;height:21px;flex:none;color:var(--text-muted);cursor:grab;touch-action:none;-webkit-user-select:none;user-select:none;margin-top:2px;}
 .drag-handle:active{cursor:grabbing;}
+.task-row .checkbox{margin-top:2px;}
+.task-row-actions{display:flex;flex-direction:column;align-items:center;flex:none;}
+.task-row-actions .icon-btn{padding:2px 5px;font-size:15px;}
 .tracker-subtask.dragging-placeholder{opacity:0;}
 .tracker-subtask-drag-clone{box-shadow:var(--shadow);border-radius:var(--radius-sm);z-index:9999;pointer-events:none;opacity:.97;background:var(--surface);}
 .champion-card{background:linear-gradient(135deg,#123C33,#0A2620);border:1px solid #1E5C4C;color:#EAF7F2;box-shadow:var(--shadow);}
@@ -251,7 +254,7 @@ textarea.input{resize:vertical;min-height:44px;}
 .checkbox{width:21px;height:21px;flex:none;border-radius:7px;border:1.5px solid var(--border);background:var(--surface);cursor:pointer;position:relative;}
 .checkbox.checked{background:var(--accent);border-color:var(--accent);}
 .checkbox.checked::after{content:"";position:absolute;left:6px;top:2px;width:5px;height:10px;border:solid #fff;border-width:0 2px 2px 0;transform:rotate(40deg);}
-.task-text{flex:1;word-break:break-word;}
+.task-text{flex:1;min-width:0;word-break:break-word;padding-top:2px;}
 .task-text.done{color:var(--text-muted);text-decoration:line-through;}
 .task-actions{display:flex;align-items:center;flex:none;}
 .inline-edit{width:100%;display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:9px 0;border-bottom:1px solid var(--border);}
@@ -1108,16 +1111,17 @@ function taskRow(t, abandoning, draggable){
   }
   var handle = draggable
     ? '<span class="drag-handle" data-drag-handle aria-label="Изменить порядок" title="Потяните, чтобы изменить порядок">'
-      + '<svg viewBox="0 0 24 24" width="16" height="16"><circle cx="8" cy="6" r="1.6" fill="currentColor"/><circle cx="16" cy="6" r="1.6" fill="currentColor"/><circle cx="8" cy="12" r="1.6" fill="currentColor"/><circle cx="16" cy="12" r="1.6" fill="currentColor"/><circle cx="8" cy="18" r="1.6" fill="currentColor"/><circle cx="16" cy="18" r="1.6" fill="currentColor"/></svg>'
+      + '<svg viewBox="0 0 24 24" width="13" height="13"><circle cx="8" cy="6" r="1.6" fill="currentColor"/><circle cx="16" cy="6" r="1.6" fill="currentColor"/><circle cx="8" cy="12" r="1.6" fill="currentColor"/><circle cx="16" cy="12" r="1.6" fill="currentColor"/><circle cx="8" cy="18" r="1.6" fill="currentColor"/><circle cx="16" cy="18" r="1.6" fill="currentColor"/></svg>'
       + '</span>'
     : '';
+  var actions = (t.done ? '' : '<button class="icon-btn" data-action="move-to-tracker" data-id="'+t.id+'" aria-label="Перенести в трекер дел" title="В трекер дел">↗</button><button class="icon-btn" data-action="abandon-task-start" data-id="'+t.id+'" aria-label="Забросить" title="Забросить">⚑</button>')
+    + '<button class="icon-btn" data-action="edit-task-start" data-id="'+t.id+'" aria-label="Редактировать дело" title="Редактировать">✎</button>'
+    + '<button class="icon-btn danger" data-action="delete-task" data-id="'+t.id+'" aria-label="Удалить">×</button>';
   return '<div class="task-row'+(draggable?' task-row-draggable" data-drag-row':'')+'" data-id="'+t.id+'">'
     + handle
     + '<button class="checkbox '+(t.done?'checked':'')+'" data-action="toggle-task" data-id="'+t.id+'" data-done="'+(!t.done)+'" aria-label="Отметить"></button>'
     + '<span class="task-text '+(t.done?'done':'')+'">'+esc(t.text)+'</span>'
-    + (t.done ? '' : '<button class="icon-btn" data-action="move-to-tracker" data-id="'+t.id+'" aria-label="Перенести в трекер дел" title="В трекер дел">↗</button><button class="icon-btn" data-action="abandon-task-start" data-id="'+t.id+'" aria-label="Забросить" title="Забросить">⚑</button>')
-    + '<button class="icon-btn" data-action="edit-task-start" data-id="'+t.id+'" aria-label="Редактировать дело" title="Редактировать">✎</button>'
-    + '<button class="icon-btn danger" data-action="delete-task" data-id="'+t.id+'" aria-label="Удалить">×</button>'
+    + '<div class="task-row-actions">'+actions+'</div>'
     + '</div>';
 }
 
