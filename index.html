@@ -359,22 +359,23 @@ a{color:var(--accent);}
 @media(prefers-reduced-motion:reduce){.skeleton{animation:none;}}
 
 /* First-load focus sequence */
-.boot-splash{position:fixed;inset:0;z-index:2000;overflow:hidden;background:radial-gradient(circle at 70% 38%,#3b2a16 0,#17140f 28%,#080a0a 64%,#030505 100%);color:#f4efe5;font-family:inherit;isolation:isolate}
+.boot-splash{position:fixed;inset:0;z-index:2000;overflow:hidden;background:radial-gradient(circle at 72% 37%,#3a2916 0,#171b16 27%,#0b201b 58%,#06120f 78%,#030706 100%);color:#f4efe5;font-family:inherit;isolation:isolate}
 .boot-scene{position:absolute;inset:-3%;transform:scale(1.04);animation:boot-breathe 5s ease-in-out infinite alternate;will-change:transform}
-.boot-grid{position:absolute;inset:0;opacity:.16;background-image:linear-gradient(rgba(217,167,92,.18) 1px,transparent 1px),linear-gradient(90deg,rgba(217,167,92,.12) 1px,transparent 1px);background-size:48px 48px;mask-image:linear-gradient(135deg,transparent 15%,#000 48%,transparent 82%)}
+.boot-grid{position:absolute;inset:0;opacity:.16;background-image:linear-gradient(rgba(70,133,111,.22) 1px,transparent 1px),linear-gradient(90deg,rgba(70,133,111,.15) 1px,transparent 1px);background-size:48px 48px;mask-image:linear-gradient(135deg,transparent 15%,#000 48%,transparent 82%)}
 .boot-copybox{position:absolute;z-index:5;left:9vw;top:10vh;width:min(72vw,330px)}
 .boot-brand{font-family:'Unbounded',sans-serif;font-size:clamp(35px,10vw,58px);font-weight:700;line-height:.96;letter-spacing:-.06em;color:#f1eee7;text-shadow:0 5px 22px rgba(0,0,0,.34);animation:boot-rise .65s both}
 .boot-bar{width:68px;height:8px;background:#d9a75c;margin:22px 0 18px;box-shadow:5px 5px 0 rgba(85,54,14,.24)}
 .boot-message{font-size:clamp(18px,5vw,25px);line-height:1.12;font-weight:650;max-width:250px;color:#ddd7ca;animation:boot-rise .65s .14s both}
 .boot-compass-stage{position:absolute;z-index:4;left:-7vw;top:36vh;width:min(82vw,390px);aspect-ratio:1;transform:rotate(-7deg);filter:drop-shadow(0 22px 28px rgba(0,0,0,.45));animation:boot-float 4.2s ease-in-out infinite alternate}
 .boot-compass{width:100%;height:100%;overflow:visible}
-.boot-compass .ring{fill:#111311;stroke:#d2c2a5;stroke-width:4}
-.boot-compass .inner{fill:#171816;stroke:#705a39;stroke-width:2}
+.boot-compass .ring{fill:#101713;stroke:#c9bea9;stroke-width:4}
+.boot-compass .inner{fill:#122019;stroke:#456b5d;stroke-width:2}
 .boot-compass .ray{fill:#e7ddca}
 .boot-compass .ray.dark{fill:#272a27}
 .boot-needle{transform-origin:50% 50%;animation:boot-search 1.65s cubic-bezier(.2,.75,.2,1) both}
 .boot-needle .gold{fill:#e0ad45}.boot-needle .shade{fill:#80571b}
-.boot-hub{fill:#0a0c0b;stroke:#59472f;stroke-width:2}
+.boot-hub{fill:#08120f;stroke:#3f6759;stroke-width:2}
+.boot-scene::after{content:'';position:absolute;z-index:1;inset:0;background:radial-gradient(ellipse at 12% 70%,rgba(20,83,68,.25),transparent 43%),radial-gradient(ellipse at 72% 16%,rgba(31,100,80,.11),transparent 35%);pointer-events:none}
 .boot-path{position:absolute;z-index:3;left:45vw;top:37vh;width:46vw;height:8px;background:linear-gradient(90deg,#3a3227,#b27f2c);transform:rotate(-42deg);transform-origin:left center;box-shadow:0 8px 16px rgba(0,0,0,.35)}
 .boot-path::before,.boot-path::after{content:'';position:absolute;inset:-7px 20% -7px 18%;border:1px solid rgba(217,167,92,.2)}
 .boot-goal{position:absolute;z-index:6;right:8vw;top:25vh;transform:rotate(3deg);animation:boot-goal .45s 1.34s cubic-bezier(.16,1,.3,1) both;filter:drop-shadow(8px 12px 12px rgba(0,0,0,.38))}
