@@ -1533,13 +1533,13 @@ function championDayWord(n){
 function renderChampionCard(){
   var c = state.champion;
   if(c.loading){
-    return '<div class="card champion-card"><div class="champion-title" style="margin-bottom:10px">Три дела чемпиона</div><div class="skeleton" style="background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.08)"></div></div>';
+    return '<div class="card champion-card"><div class="champion-title" style="margin-bottom:10px">Блок чемпиона</div><div class="skeleton" style="background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.08)"></div></div>';
   }
   var items = c.editing ? (c.draftItems||[]) : c.items;
   var tKey = todayKey();
   var todayIds = c.log[tKey] || [];
   var html = '<div class="card champion-card">';
-  html += '<div class="champion-head"><div class="champion-title">Три дела чемпиона</div>'
+  html += '<div class="champion-head"><div class="champion-title">Блок чемпиона</div>'
     + (!c.editing ? '<button type="button" class="champion-pencil" data-action="champion-edit-start" aria-label="Редактировать">✎</button>' : '')
     + '</div>';
   if(!c.editing && c.todayDone) html += '<div class="champion-reward">🏆 Сегодня выполнен блок чемпиона!</div>';
