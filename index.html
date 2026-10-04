@@ -231,6 +231,7 @@ textarea.input{resize:vertical;min-height:44px;}
 .champion-item .checkbox{border-color:rgba(255,255,255,.4);background:transparent;}
 .champion-item .checkbox.checked{background:#2EE6C5;border-color:#2EE6C5;}
 .champion-item .checkbox.checked::after{border-color:#0A2620;}
+.champion-item .checkbox.pending{opacity:.45;pointer-events:none;}
 .champion-item-text{flex:1;color:#EAF7F2;}
 .champion-item-text.done{color:#8FB8AE;text-decoration:line-through;}
 .champion-edit-row{display:flex;align-items:center;gap:8px;padding:6px 0;}
@@ -598,7 +599,7 @@ var state = {
   budget:{ year:new Date().getFullYear(), month:new Date().getMonth(), doc:null, loading:true, actual:{income:0,expense:0} },
   summary:{ loading:true },
   coach:{ index: coachHistory[0] },
-  champion:{ loading:true, items:[], log:{}, streak:0, todayDone:false, editing:false, draftItems:null }
+  champion:{ loading:true, items:[], log:{}, streak:0, todayDone:false, editing:false, draftItems:null, pending:{} }
 };
 
 /* ---------- coach ---------- */
@@ -1352,7 +1353,7 @@ async function loadChampion(){
   state.champion = {
     loading:false, items:items, log:log,
     streak:streakInfo.streak, todayDone:streakInfo.todayDone,
-    editing:false, draftItems:null
+    editing:false, draftItems:null, pending:{}
   };
   renderMain();
 }
@@ -1379,16 +1380,37 @@ async function saveChampionToggleWithSuccess(id, tKey, itemIds){
     return current;
   });
 }
-async function toggleChampionItem(id){
-  var c = state.champion;
-  var tKey = todayKey();
-  var itemIds = c.items.map(function(it){ return it.id; });
-  var current = await safe(saveChampionToggleWithSuccess(id, tKey, itemIds), 'Не удалось сохранить отметку');
-  if(current===null) return;
-  c.log[tKey] = current;
+function applyChampionLogForToday(c, tKey, doneIds){
+  c.log[tKey] = doneIds;
   var streakInfo = computeChampionStreak(c.items, c.log);
   c.streak = streakInfo.streak;
   c.todayDone = streakInfo.todayDone;
+}
+async function toggleChampionItem(id){
+  var c = state.champion;
+  if(!c.pending) c.pending = {};
+  if(c.pending[id]) return; // ignore extra taps while this item's save is in flight
+  var tKey = todayKey();
+  var itemIds = c.items.map(function(it){ return it.id; });
+
+  // Optimistic update so the tap feels instant even on a slow connection,
+  // and so a second tap can't race the first one's save.
+  var prevLog = (c.log[tKey] || []).slice();
+  var optimistic = prevLog.slice();
+  var oi = optimistic.indexOf(id);
+  if(oi!==-1) optimistic.splice(oi,1); else optimistic.push(id);
+  applyChampionLogForToday(c, tKey, optimistic);
+  c.pending[id] = true;
+  renderMain();
+
+  var result = await safe(saveChampionToggleWithSuccess(id, tKey, itemIds), 'Не удалось сохранить отметку');
+  delete c.pending[id];
+  if(result===null){
+    applyChampionLogForToday(c, tKey, prevLog); // roll back the optimistic change
+    renderMain();
+    return;
+  }
+  applyChampionLogForToday(c, tKey, result);
   renderMain();
 }
 function startChampionEdit(){
@@ -1472,7 +1494,8 @@ function renderChampionCard(){
     } else {
       html += items.map(function(it){
         var done = todayIds.indexOf(it.id)!==-1;
-        return '<div class="champion-item"><button class="checkbox '+(done?'checked':'')+'" data-action="toggle-champion-item" data-id="'+esc(it.id)+'" aria-label="Отметить"></button>'
+        var isPending = !!(c.pending && c.pending[it.id]);
+        return '<div class="champion-item"><button class="checkbox '+(done?'checked':'')+(isPending?' pending':'')+'" data-action="toggle-champion-item" data-id="'+esc(it.id)+'" aria-label="Отметить"></button>'
           + '<span class="champion-item-text '+(done?'done':'')+'">'+esc(it.text)+'</span></div>';
       }).join('');
     }
