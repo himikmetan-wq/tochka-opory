@@ -490,19 +490,36 @@ var _fsDb = getFirestore(_fsApp);
 var _auth = getAuth(_fsApp);
 var activeUser = null;
 
+function sleep(ms){ return new Promise(function(res){ setTimeout(res, ms); }); }
+function isOfflineError(e){ return !!(e && (e.code==='unavailable' || /offline/i.test(e.message||''))); }
+async function withRetry(fn, attempts, delayMs){
+  attempts = attempts || 4; delayMs = delayMs || 1000;
+  var lastErr;
+  for(var i=0;i<attempts;i++){
+    try { return await fn(); }
+    catch(e){
+      lastErr = e;
+      if(!isOfflineError(e) || i===attempts-1) throw e;
+      await sleep(delayMs * (i+1));
+    }
+  }
+  throw lastErr;
+}
+
 async function migrateLegacyData(user){
   if(user.email !== LEGACY_OWNER_EMAIL || !user.emailVerified) return;
   var marker = doc(_fsDb, 'users', user.uid);
-  if((await getDoc(marker)).exists()) return;
+  var markerSnap = await withRetry(function(){ return getDoc(marker); });
+  if(markerSnap.exists()) return;
   for(var i=0;i<BACKUP_COLLECTIONS.length;i++){
     var coll = BACKUP_COLLECTIONS[i];
-    var oldDocs = await getDocs(collection(_fsDb, LEGACY_PREFIX, 'data', coll));
+    var oldDocs = await withRetry(function(){ return getDocs(collection(_fsDb, LEGACY_PREFIX, 'data', coll)); });
     for(var j=0;j<oldDocs.docs.length;j++){
       var old = oldDocs.docs[j];
-      await setDoc(doc(_fsDb, 'users', user.uid, coll, old.id), old.data());
+      await withRetry(function(){ return setDoc(doc(_fsDb, 'users', user.uid, coll, old.id), old.data()); });
     }
   }
-  await setDoc(marker, {legacyMigratedAt:nowISO()});
+  await withRetry(function(){ return setDoc(marker, {legacyMigratedAt:nowISO()}); });
 }
 
 function _fsDocRef(coll, id){ return doc(_fsDb, 'users', activeUser.uid, coll, id); }
@@ -2080,7 +2097,20 @@ function boot(){
     if(!user){ showLogin(); return; }
     document.getElementById('main-content').innerHTML = '<div class="card empty-state">Проверяем и переносим записи…</div>';
     try { await migrateLegacyData(user); }
-    catch(e){ console.error(e); document.getElementById('main-content').textContent = 'Не удалось перенести прежние записи. Проверьте правила Firebase и обновите страницу.'; return; }
+    catch(e){
+      console.error(e);
+      var offline = isOfflineError(e);
+      var msg = offline ? 'Нет связи с сервером. Проверьте интернет-соединение и попробуйте ещё раз.' : 'Не удалось перенести прежние записи. Проверьте правила Firebase и попробуйте ещё раз.';
+      var box = document.getElementById('main-content');
+      box.innerHTML = '';
+      var card = document.createElement('div'); card.className = 'card empty-state';
+      var p = document.createElement('div'); p.textContent = msg; p.style.marginBottom='12px';
+      var retryBtn = document.createElement('button'); retryBtn.className='btn btn-primary btn-sm'; retryBtn.textContent='Повторить';
+      retryBtn.onclick = function(){ boot(); };
+      card.append(p, retryBtn);
+      box.appendChild(card);
+      return;
+    }
     if(_auth.currentUser?.uid !== user.uid) return;
     await loadTheme(user);
     var control = document.getElementById('account-control');
