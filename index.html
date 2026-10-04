@@ -320,7 +320,13 @@ details.done-section summary{cursor:pointer;font-size:13px;color:var(--text-mute
 
 .budget-item-row{display:flex;align-items:center;gap:8px;padding:8px 2px;border-bottom:1px solid var(--border);}
 .budget-item-row:last-child{border-bottom:none;}
-.budget-item-row .name{flex:1;}
+.budget-item-row .name{flex:1;min-width:0;overflow-wrap:anywhere;}
+.budget-drag-text{touch-action:none;user-select:none;-webkit-user-select:none;cursor:grab;}
+.budget-item-row.dragging-placeholder{opacity:0;}
+.budget-item-row.task-row-drag-clone{background:var(--surface);}
+.budget-item-edit{padding:10px 0;border-bottom:1px solid var(--border);gap:8px;}
+.budget-item-row .icon-btn{padding:3px 4px;font-size:16px;flex:none;}
+.budget-item-row .amount{white-space:nowrap;}
 .budget-item-row .amount{font-weight:600;}
 .budget-item-row.paid .name{text-decoration:line-through;color:var(--text-muted);}
 .budget-item-row.paid .amount{text-decoration:line-through;color:var(--text-muted);}
@@ -788,7 +794,7 @@ function renderMain(){
   else if(state.tab==='tasks'){ el.innerHTML = renderTasks(); initTaskDrag(); }
   else if(state.tab==='tracker'){ el.innerHTML = renderTracker(); initTrackerSubtaskDrag(); }
   else if(state.tab==='finance') el.innerHTML = renderFinance();
-  else if(state.tab==='budget') el.innerHTML = renderBudget();
+  else if(state.tab==='budget'){ el.innerHTML = renderBudget(); initBudgetDrag(); }
 }
 
 function renderDbUnavailable(){
@@ -1743,6 +1749,7 @@ function renderFinance(){
 async function loadBudget(){
   state.budget.loading = true;
   state.budget.editingMeta = false;
+  state.budget.editingItem = null;
   renderMain();
   var key = monthKey(state.budget.year, state.budget.month);
   var snap = await safe(refBudgetDoc(key).get(), 'Не удалось загрузить бюджет');
@@ -1790,6 +1797,61 @@ async function copyPrevMonth(){
     doc.plannedIncome = prev.plannedIncome||0;
   }
   await saveBudget(doc);
+}
+
+
+function budgetItemRow(it, isExtra){
+  var list = isExtra ? 'extraItems' : 'items';
+  var editing = state.budget.editingItem;
+  if(editing && editing.id===it.id && editing.list===list){
+    return '<form class="budget-item-edit stack" data-action="edit-budget-item" data-id="'+it.id+'" data-list="'+list+'">'
+      + '<input class="input" name="name" maxlength="80" value="'+esc(it.name)+'" required aria-label="Название траты">'
+      + '<input class="input mono" name="amount" type="number" min="0" step="1" value="'+it.amount+'" required aria-label="Сумма траты">'
+      + '<div class="btn-row"><button class="btn btn-primary btn-sm" type="submit">Сохранить</button><button class="btn btn-ghost btn-sm" type="button" data-action="budget-edit-item-cancel">Отмена</button></div></form>';
+  }
+  return '<div class="budget-item-row'+(it.paid?' paid':'')+'" data-drag-row data-id="'+it.id+'">'
+    + '<span class="drag-handle" data-drag-handle title="Зажмите и перетащите">⋮⋮</span>'
+    + '<button class="checkbox '+(it.paid?'checked':'')+'" type="button" data-action="'+(isExtra?'toggle-budget-extra-item-paid':'toggle-budget-item-paid')+'" data-id="'+it.id+'" aria-label="Отметить оплаченным"></button>'
+    + '<span class="name budget-drag-text" data-drag-handle title="Зажмите и перетащите">'+esc(it.name)+'</span><span class="amount mono">'+fmtBudgetMoney(it.amount)+'</span>'
+    + '<button class="icon-btn" type="button" data-action="budget-edit-item-start" data-id="'+it.id+'" data-list="'+list+'" aria-label="Редактировать трату">✎</button>'
+    + '<button class="icon-btn danger" type="button" data-action="'+(isExtra?'delete-budget-extra-item':'delete-budget-item')+'" data-id="'+it.id+'" aria-label="Удалить трату">×</button></div>';
+}
+async function editBudgetItem(id, list, name, amount){
+  if(!['items','extraItems'].includes(list) || !name || !Number.isFinite(amount) || amount<0) return;
+  var doc=clone(state.budget.doc || emptyBudgetDoc());
+  doc[list]=(doc[list]||[]).map(function(it){return it.id===id ? Object.assign({},it,{name:name,amount:amount}) : it;});
+  var editing=state.budget.editingItem;
+  state.budget.editingItem=null;
+  if(!await saveBudget(doc)){state.budget.editingItem=editing;renderMain();}
+}
+async function reorderBudgetItems(list, ids){
+  if(!['items','extraItems'].includes(list)) return;
+  var doc=clone(state.budget.doc || emptyBudgetDoc()), items=doc[list]||[];
+  if(ids.length!==items.length || new Set(ids).size!==items.length || ids.some(function(id){return !items.some(function(it){return it.id===id;});})) return;
+  doc[list]=ids.map(function(id){return items.find(function(it){return it.id===id;});});
+  await saveBudget(doc);
+}
+function initBudgetDrag(){
+  ['items','extraItems'].forEach(function(key){
+    var list=document.getElementById('budget-list-'+key);
+    if(!list) return;
+    list.addEventListener('contextmenu',function(e){if(e.target.closest('[data-drag-handle]'))e.preventDefault();});
+    list.addEventListener('pointerdown',function(e){
+      if(e.button!=null && e.button!==0 || !e.target.closest('[data-drag-handle]') || activeDrag) return;
+      var x=e.clientX,y=e.clientY,pointer=e.pointerId;
+      var timer=setTimeout(function(){
+        cleanup();
+        if(list.isConnected)onDragListPointerDown(e,list,function(ids){reorderBudgetItems(key,ids);});
+      },350);
+      function cancel(){clearTimeout(timer);cleanup();}
+      function move(ev){if(ev.pointerId===pointer && Math.hypot(ev.clientX-x,ev.clientY-y)>8)cancel();}
+      function end(ev){if(ev.pointerId===pointer)cancel();}
+      function cleanup(){document.removeEventListener('pointermove',move);document.removeEventListener('pointerup',end);document.removeEventListener('pointercancel',end);}
+      document.addEventListener('pointermove',move);
+      document.addEventListener('pointerup',end);
+      document.addEventListener('pointercancel',end);
+    });
+  });
 }
 
 function renderBudget(){
@@ -1848,11 +1910,7 @@ function renderBudget(){
   if(!doc.items || !doc.items.length){
     html += '<div class="empty-state">Список пуст — добавьте регулярные платежи и траты.</div>';
   } else {
-    html += doc.items.map(function(it){
-      return '<div class="budget-item-row'+(it.paid?' paid':'')+'">'
-        + '<button class="checkbox '+(it.paid?'checked':'')+'" type="button" data-action="toggle-budget-item-paid" data-id="'+it.id+'" aria-label="Отметить оплаченным"></button>'
-        + '<span class="name">'+esc(it.name)+'</span><span class="amount mono">'+fmtBudgetMoney(it.amount)+'</span><button class="icon-btn danger" data-action="delete-budget-item" data-id="'+it.id+'">×</button></div>';
-    }).join('');
+    html += '<div id="budget-list-items">'+doc.items.map(function(it){return budgetItemRow(it,false);}).join('')+'</div>';
   }
   var paidSum = (doc.items||[]).concat(doc.extraItems||[]).filter(function(it){ return it.paid; }).reduce(function(s,it){ return s+it.amount; },0);
   html += '<div class="divider"></div>';
@@ -1871,11 +1929,7 @@ function renderBudget(){
   if(!doc.extraItems || !doc.extraItems.length){
     html += '<div class="empty-state">Список пуст — добавьте внеплановые расходы на этот месяц.</div>';
   } else {
-    html += doc.extraItems.map(function(it){
-      return '<div class="budget-item-row'+(it.paid?' paid':'')+'">'
-        + '<button class="checkbox '+(it.paid?'checked':'')+'" type="button" data-action="toggle-budget-extra-item-paid" data-id="'+it.id+'" aria-label="Отметить оплаченным"></button>'
-        + '<span class="name">'+esc(it.name)+'</span><span class="amount mono">'+fmtBudgetMoney(it.amount)+'</span><button class="icon-btn danger" data-action="delete-budget-extra-item" data-id="'+it.id+'">×</button></div>';
-    }).join('');
+    html += '<div id="budget-list-extraItems">'+doc.extraItems.map(function(it){return budgetItemRow(it,true);}).join('')+'</div>';
   }
   html += '<div class="divider"></div>';
   html += '<div class="row between"><span>Итого доп. расходов</span><span class="mono" style="font-weight:600">'+fmtBudgetMoney(extraPlanned)+'</span></div>';
@@ -1996,6 +2050,8 @@ document.getElementById('main-content').addEventListener('click', function(e){
   else if(a==='budget-next-month'){ var b2=state.budget; b2.month++; if(b2.month>11){b2.month=0;b2.year++;} loadBudget(); }
   else if(a==='copy-prev-month'){ copyPrevMonth(); }
   else if(a==='start-empty-budget'){ saveBudget(emptyBudgetDoc()); }
+  else if(a==='budget-edit-item-start'){state.budget.editingItem={id:btn.dataset.id,list:btn.dataset.list};renderMain();}
+  else if(a==='budget-edit-item-cancel'){state.budget.editingItem=null;renderMain();}
   else if(a==='delete-budget-item'){
     var doc = clone(state.budget.doc || emptyBudgetDoc());
     doc.items = (doc.items||[]).filter(function(it){ return it.id!==btn.dataset.id; });
@@ -2105,6 +2161,7 @@ document.getElementById('main-content').addEventListener('submit', function(e){
     addTransaction(date, type, amount, note);
     form.reset();
   }
+  else if(a==='edit-budget-item'){editBudgetItem(form.dataset.id,form.dataset.list,(fd.get('name')||'').trim(),Number(fd.get('amount')));}
   else if(a==='add-budget-item'){
     var name = (fd.get('name')||'').trim();
     var amt = Number(fd.get('amount'));
