@@ -15,10 +15,10 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Точка опоры">
 <style>
-.account-bar{display:flex;align-items:center;gap:8px;justify-content:flex-end;max-width:100%;font-size:12px}
-.account-bar span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:160px}
-.account-bar button{border:1px solid var(--border);background:var(--surface);color:var(--text);border-radius:8px;padding:6px;cursor:pointer}
-#account-control{display:flex;align-items:center;gap:10px;}
+.account-bar{display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px;justify-content:flex-end;max-width:100%;font-size:12px}
+.account-bar span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:130px}
+.account-bar button{border:1px solid var(--border);background:var(--surface);color:var(--text);border-radius:8px;padding:6px;cursor:pointer;flex:none;}
+#account-control{display:flex;flex-wrap:wrap;align-items:center;justify-content:flex-end;gap:8px 10px;max-width:100%;}
 .header-theme-switch{gap:0;flex:none;}
 .login-card{max-width:420px;margin:12vh auto 0;padding:28px;text-align:center;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius)}
 .login-card p{color:var(--text-muted);line-height:1.5}
@@ -84,7 +84,7 @@
 
 html{padding-top:env(safe-area-inset-top,0px);}
 *{box-sizing:border-box;}
-html,body{min-height:100%;}
+html,body{min-height:100%;max-width:100%;overflow-x:hidden;}
 body{
   margin:0;
   background:var(--bg);
@@ -99,16 +99,16 @@ h1,h2,h3{font-family:'Unbounded',sans-serif;font-weight:600;margin:0;}
 button{font-family:inherit;}
 input,textarea{font-family:inherit;font-size:15px;}
 
-#app{max-width:640px;margin:0 auto;padding:0 16px;}
+#app{max-width:640px;margin:0 auto;padding:0 16px;overflow-x:hidden;}
 
 .app-header{
   position:sticky;top:0;z-index:5;
-  display:flex;align-items:center;justify-content:space-between;
-  gap:12px;padding:14px 2px 12px;
+  display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;
+  gap:6px 12px;padding:14px 2px 12px;
   background:var(--bg);
   border-bottom:1px solid var(--border);
 }
-.brand{display:flex;align-items:center;gap:8px;color:var(--accent-strong);}
+.brand{display:flex;align-items:center;gap:8px;color:var(--accent-strong);flex:none;}
 .brand svg{width:22px;height:22px;flex:none;}
 .brand span{font-family:'Unbounded',sans-serif;font-size:15px;font-weight:600;color:var(--text);}
 .today{font-size:12.5px;color:var(--text-muted);text-align:right;text-transform:capitalize;}
@@ -123,16 +123,21 @@ input,textarea{font-family:inherit;font-size:15px;}
   padding:7px 10px calc(7px + env(safe-area-inset-bottom,0px));
   box-shadow:0 -2px 14px rgba(0,0,0,.05);
 }
-.tabbar-inner{display:flex;width:100%;max-width:640px;justify-content:space-between;gap:2px;}
+.tabbar-inner{display:flex;width:100%;max-width:640px;justify-content:space-between;gap:1px;}
 .tabbar-inner{overflow-x:auto;scrollbar-width:none;overscroll-behavior-x:contain;}
 .tabbar-inner::-webkit-scrollbar{display:none;}
 .tab-btn{
-  flex:1 0 66px;display:flex;flex-direction:column;align-items:center;gap:3px;
-  background:none;border:none;color:var(--text-muted);padding:6px 2px;border-radius:var(--radius-sm);
+  flex:1 1 0;min-width:0;display:flex;flex-direction:column;align-items:center;gap:3px;
+  background:none;border:none;color:var(--text-muted);padding:6px 1px;border-radius:var(--radius-sm);
   cursor:pointer;font-size:10.5px;letter-spacing:.01em;
 }
-.tab-btn svg{width:21px;height:21px;}
+.tab-btn span{display:block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.tab-btn svg{width:21px;height:21px;flex:none;}
 .tab-btn.active{color:var(--accent);}
+@media (max-width:360px){
+  .tab-btn{font-size:9.5px;}
+  .tab-btn svg{width:19px;height:19px;}
+}
 .tab-btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
 
 .section-title{font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);margin:0 0 10px;}
