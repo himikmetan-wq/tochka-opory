@@ -1357,14 +1357,34 @@ async function loadChampion(){
   renderMain();
 }
 
+async function saveChampionToggleWithSuccess(id, tKey, itemIds){
+  var logRef = _fsDocRef('championLog', tKey);
+  var journalRef = _fsDocRef('journal', tKey);
+  return runTransaction(_fsDb, async function(tx){
+    var logSnap = await tx.get(logRef);
+    var journalSnap = await tx.get(journalRef);
+    var before = logSnap.exists() ? (logSnap.data().doneIds || []) : [];
+    var current = before.slice();
+    var idx = current.indexOf(id);
+    if(idx!==-1) current.splice(idx,1); else current.push(id);
+    var wasAllDone = itemIds.length>0 && itemIds.every(function(x){ return before.indexOf(x)!==-1; });
+    var isAllDone = itemIds.length>0 && itemIds.every(function(x){ return current.indexOf(x)!==-1; });
+    tx.set(logRef, { date:tKey, doneIds:current, updatedAt:nowISO() });
+    if(isAllDone !== wasAllDone){
+      var data = journalSnap.exists() ? journalSnap.data() : {};
+      var entries = (data.entries||[]).filter(function(e){ return e.sourceChampion!==tKey; });
+      if(isAllDone) entries.push({ id:uid(), text:'Выполнил блок чемпиона', createdAt:nowISO(), sourceChampion:tKey });
+      tx.set(journalRef, { date:tKey, entries:entries, updatedAt:nowISO() });
+    }
+    return current;
+  });
+}
 async function toggleChampionItem(id){
   var c = state.champion;
   var tKey = todayKey();
-  var current = (c.log[tKey] || []).slice();
-  var idx = current.indexOf(id);
-  if(idx!==-1) current.splice(idx,1); else current.push(id);
-  var ok = await safe(refChampionLogDoc(tKey).set({ date:tKey, doneIds:current, updatedAt:nowISO() }), 'Не удалось сохранить отметку');
-  if(ok===null) return;
+  var itemIds = c.items.map(function(it){ return it.id; });
+  var current = await safe(saveChampionToggleWithSuccess(id, tKey, itemIds), 'Не удалось сохранить отметку');
+  if(current===null) return;
   c.log[tKey] = current;
   var streakInfo = computeChampionStreak(c.items, c.log);
   c.streak = streakInfo.streak;
