@@ -290,8 +290,9 @@ details.done-section summary{cursor:pointer;font-size:13px;color:var(--text-mute
 .budget-item-row.paid .name{text-decoration:line-through;color:var(--text-muted);}
 .budget-item-row.paid .amount{text-decoration:line-through;color:var(--text-muted);}
 
-.budget-meta-display{position:relative;display:flex;flex-direction:column;gap:8px;padding-right:34px;}
-.budget-meta-pencil{position:absolute;top:0;right:0;}
+.budget-meta-display{display:flex;flex-direction:column;gap:8px;}
+.budget-meta-value-wrap{display:flex;align-items:center;gap:8px;}
+.budget-meta-required{padding-top:4px;border-top:1px solid var(--border);margin-top:2px;}
 
 .empty-state{text-align:center;padding:26px 10px;color:var(--text-muted);font-size:13.5px;}
 .empty-state .big{font-size:26px;margin-bottom:6px;}
@@ -1757,17 +1758,17 @@ function renderBudget(){
 
   html += '<form class="stack" data-action="save-budget-meta">';
   if(st.editingMeta){
-    html += '<label class="muted">Подушка безопасности (сейчас)<input class="input mono" type="number" name="cushion" min="0" step="1" value="'+(doc.cushion||0)+'"></label>';
     html += '<label class="muted">Заложено на месяц<input class="input mono" type="number" name="plannedIncome" min="0" step="1" value="'+(doc.plannedIncome||0)+'"></label>';
+    html += '<label class="muted">Подушка безопасности (сейчас)<input class="input mono" type="number" name="cushion" min="0" step="1" value="'+(doc.cushion||0)+'"></label>';
   } else {
     html += '<input type="hidden" name="cushion" value="'+(doc.cushion||0)+'">';
     html += '<input type="hidden" name="plannedIncome" value="'+(doc.plannedIncome||0)+'">';
     html += '<div class="budget-meta-display">'
-      + '<div class="row between"><span class="muted">Подушка безопасности (сейчас)</span><span class="mono budget-meta-value">'+fmtMoney(doc.cushion||0)+'</span></div>'
-      + '<div class="row between"><span class="muted">Заложено на месяц</span><span class="mono budget-meta-value">'+fmtMoney(doc.plannedIncome||0)+'</span></div>'
-      + '<button type="button" class="champion-pencil budget-meta-pencil" data-action="budget-edit-meta-start" aria-label="Редактировать">✎</button>'
+      + '<div class="row between"><span class="muted">Заложено на месяц</span><span class="budget-meta-value-wrap"><span class="mono budget-meta-value">'+fmtMoney(doc.plannedIncome||0)+'</span><button type="button" class="champion-pencil" data-action="budget-edit-meta-start" aria-label="Редактировать">✎</button></span></div>'
+      + '<div class="row between"><span class="muted">Подушка безопасности (сейчас)</span><span class="budget-meta-value-wrap"><span class="mono budget-meta-value">'+fmtMoney(doc.cushion||0)+'</span><button type="button" class="champion-pencil" data-action="budget-edit-meta-start" aria-label="Редактировать">✎</button></span></div>'
       + '</div>';
   }
+  html += '<div class="row between budget-meta-required"><span class="muted">Требуется на месяц</span><span class="mono budget-meta-value" style="font-weight:700">'+fmtMoney(planned)+'</span></div>';
   html += '<div class="btn-row">';
   if(st.editingMeta) html += '<button type="button" class="champion-link" data-action="budget-edit-meta-cancel">Отмена</button>';
   html += '<button type="submit" class="btn btn-primary btn-sm">Сохранить</button>';
