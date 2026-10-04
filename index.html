@@ -113,7 +113,20 @@ input,textarea{font-family:inherit;font-size:15px;}
 .brand span{font-family:'Unbounded',sans-serif;font-size:15px;font-weight:600;color:var(--text);}
 .today{font-size:12.5px;color:var(--text-muted);text-align:right;text-transform:capitalize;}
 
-.app-main{padding:18px 2px 100px;min-height:60vh;}
+@media (max-width:600px){
+  .app-header{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:5px 8px;padding:8px 2px;}
+  .brand{min-width:0;gap:5px;}
+  .brand svg{width:17px;height:17px;}
+  .brand span{font-size:11px;white-space:nowrap;}
+  .account-bar{display:contents;}
+  .today{font-size:10px;white-space:nowrap;}
+  #account-control{grid-column:1 / -1;flex-wrap:nowrap;gap:8px;font-size:11px;min-width:0;}
+  #account-control > span{margin-right:auto;max-width:none;min-width:0;}
+  .account-bar button{padding:3px 6px;font-size:11px;}
+  .app-main{padding:12px 2px 100px;}
+}
+.app-main{min-height:60vh;}
+@media (min-width:601px){.app-main{padding:18px 2px 100px;}}
 
 .tabbar{
   position:fixed;left:0;right:0;bottom:0;z-index:10;
@@ -217,14 +230,20 @@ textarea.input{resize:vertical;min-height:44px;}
 .task-row.stacked{flex-direction:column;align-items:flex-start;gap:4px;}
 .task-row .task-main{display:flex;align-items:center;gap:10px;width:100%;}
 
-.task-row{display:flex;align-items:flex-start;gap:7px;padding:10px 2px;border-bottom:1px solid var(--border);background:var(--surface);}
+.task-row{display:flex;align-items:center;gap:7px;padding:7px 2px;border-bottom:1px solid var(--border);background:var(--surface);}
 .task-row:last-child{border-bottom:none;}
 .task-row.dragging-placeholder{opacity:0;}
 .task-row-drag-clone{box-shadow:var(--shadow);border-radius:var(--radius-sm);z-index:9999;pointer-events:none;opacity:.97;border-bottom:none !important;}
 .drag-handle{display:flex;align-items:center;justify-content:center;width:15px;height:21px;flex:none;color:var(--text-muted);cursor:grab;touch-action:none;-webkit-user-select:none;user-select:none;margin-top:2px;}
 .drag-handle:active{cursor:grabbing;}
-.task-row .checkbox{margin-top:2px;}
-.task-row-actions{display:flex;flex-direction:column;align-items:center;flex:none;}
+.task-row .checkbox{margin-top:0;}
+.journal-entry{display:flex;align-items:center;gap:8px;padding:7px 2px;border-bottom:1px solid var(--border);}
+.journal-entry:last-child{border-bottom:none;}
+.journal-entry .entry-text{flex:1;min-width:0;white-space:pre-wrap;overflow-wrap:anywhere;}
+.journal-entry .checkbox{flex:none;}
+.journal-entry-actions{display:flex;align-items:center;flex:none;gap:1px;}
+.journal-entry-actions .icon-btn{padding:3px 5px;font-size:16px;}
+.task-row-actions{display:flex;align-items:center;gap:1px;flex:none;}
 .task-row-actions .icon-btn{padding:2px 5px;font-size:15px;}
 .tracker-subtask.dragging-placeholder{opacity:0;}
 .tracker-subtask-drag-clone{box-shadow:var(--shadow);border-radius:var(--radius-sm);z-index:9999;pointer-events:none;opacity:.97;background:var(--surface);}
@@ -908,11 +927,11 @@ function renderJournal(){
           + '<button type="submit" class="btn btn-primary btn-sm">Сохранить</button>'
           + '</div></form>';
       }
-      return '<div class="entry-card"><div class="row between"><div class="entry-time">'+fmtTime(e.createdAt)+'</div>'
-        + '<div class="row" style="gap:2px">'
+      return '<div class="journal-entry"><span class="checkbox checked" role="img" aria-label="Успех выполнен"></span>'
+        + '<div class="entry-text">'+esc(e.text)+'</div><div class="journal-entry-actions">'
         + '<button class="icon-btn" data-action="edit-journal-entry-start" data-id="'+e.id+'" aria-label="Редактировать запись" title="Редактировать">✎</button>'
         + '<button class="icon-btn danger" data-action="delete-journal-entry" data-id="'+e.id+'" aria-label="Удалить запись">×</button>'
-        + '</div></div><div class="entry-text">'+esc(e.text)+'</div></div>';
+        + '</div></div>';
     }).join('');
   }
   html += '</div>';
@@ -1024,13 +1043,6 @@ async function editTask(id, text){
     renderMain();
   }
 }
-async function moveToTracker(id){
-  var item=state.tasks.items.find(function(t){return t.id===id;});
-  if(!item) return;
-  var ok=await safe(refTasks().doc(id).update({kind:'tracker', subtasks:[], done:false, doneAt:null, abandoned:false, abandonedAt:null, abandonReason:'', updatedAt:nowISO()}), 'Не удалось перенести дело');
-  if(ok!==null){ state.tasks.items=state.tasks.items.filter(function(t){return t.id!==id;}); toast('Дело перенесено в трекер'); switchTab('tracker'); }
-}
-
 function taskCounts(items){
   var done = items.filter(function(t){ return t.done; }).length;
   var abandoned = items.filter(function(t){ return t.abandoned; }).length;
@@ -1114,7 +1126,7 @@ function taskRow(t, abandoning, draggable){
       + '<svg viewBox="0 0 24 24" width="13" height="13"><circle cx="8" cy="6" r="1.6" fill="currentColor"/><circle cx="16" cy="6" r="1.6" fill="currentColor"/><circle cx="8" cy="12" r="1.6" fill="currentColor"/><circle cx="16" cy="12" r="1.6" fill="currentColor"/><circle cx="8" cy="18" r="1.6" fill="currentColor"/><circle cx="16" cy="18" r="1.6" fill="currentColor"/></svg>'
       + '</span>'
     : '';
-  var actions = (t.done ? '' : '<button class="icon-btn" data-action="move-to-tracker" data-id="'+t.id+'" aria-label="Перенести в трекер дел" title="В трекер дел">↗</button><button class="icon-btn" data-action="abandon-task-start" data-id="'+t.id+'" aria-label="Забросить" title="Забросить">⚑</button>')
+  var actions = (t.done ? '' : '<button class="icon-btn" data-action="abandon-task-start" data-id="'+t.id+'" aria-label="Забросить" title="Забросить">⚑</button>')
     + '<button class="icon-btn" data-action="edit-task-start" data-id="'+t.id+'" aria-label="Редактировать дело" title="Редактировать">✎</button>'
     + '<button class="icon-btn danger" data-action="delete-task" data-id="'+t.id+'" aria-label="Удалить">×</button>';
   return '<div class="task-row'+(draggable?' task-row-draggable" data-drag-row':'')+'" data-id="'+t.id+'">'
@@ -1554,9 +1566,36 @@ async function loadFinance(){
   renderMain();
   var range = financeRange();
   var snap = await safe(refFinanceColl().where('date','>=',range[0]).where('date','<=',range[1]).orderBy('date','asc').get(), 'Не удалось загрузить финансы');
-  state.finance.rows = snap ? snap.docs.map(function(d){ return d.data(); }) : [];
+  var rows = snap ? snap.docs.map(function(d){ return d.data(); }) : [];
+  var budgetRows = await budgetFinanceRows(range);
+  var byDate = {};
+  rows.concat(budgetRows).forEach(function(day){
+    if(!byDate[day.date]) byDate[day.date] = {date:day.date, transactions:[]};
+    byDate[day.date].transactions = byDate[day.date].transactions.concat(day.transactions||[]);
+  });
+  state.finance.rows = Object.keys(byDate).sort().map(function(date){ return byDate[date]; });
   state.finance.loading = false;
   renderMain();
+}
+// A monthly budget is one derived expense dated on the first day of that month.
+// It is read from the budget, never copied into the transaction collection.
+async function budgetFinanceRows(range){
+  var cursor = parseKey(range[0]); cursor.setDate(1);
+  var last = parseKey(range[1]);
+  var months = [];
+  while(cursor <= last){
+    var date = fmtKey(cursor);
+    if(date >= range[0] && date <= range[1]) months.push({ date:date, key:monthKey(cursor.getFullYear(),cursor.getMonth()) });
+    cursor.setMonth(cursor.getMonth()+1);
+  }
+  var rows = await Promise.all(months.map(async function(m){
+    var snap = await safe(refBudgetDoc(m.key).get(), 'Не удалось загрузить расход из бюджета');
+    if(!snap || !snap.exists) return null;
+    var amount = budgetPlannedTotal(snap.data());
+    if(!amount) return null;
+    return { date:m.date, transactions:[{ id:'budget-'+m.key, type:'expense', amount:amount, note:'Бюджет на месяц', createdAt:m.date+'T00:00:00', fromBudget:true }] };
+  }));
+  return rows.filter(function(row){ return row!==null; });
 }
 function financeTotals(rows){
   var income=0, expense=0;
@@ -1678,7 +1717,7 @@ function renderFinance(){
           + '<span class="badge '+t.type+'">'+(t.type==='income'?'доход':'расход')+'</span>'
           + '<span class="tx-note">'+esc(t.note||'')+'</span>'
           + '<span class="tx-amount '+t.type+' mono">'+(t.type==='income'?'+':'−')+fmtMoney(t.amount)+'</span>'
-          + '<button class="icon-btn danger" data-action="delete-tx" data-date="'+t.date+'" data-id="'+t.id+'">×</button></div>';
+          + (t.fromBudget ? '<span class="muted" title="Сумма автоматически берётся из бюджета">↻</span>' : '<button class="icon-btn danger" data-action="delete-tx" data-date="'+t.date+'" data-id="'+t.id+'">×</button>') + '</div>';
       }).join('') + '</div>';
     }
   }
@@ -1914,7 +1953,6 @@ document.getElementById('main-content').addEventListener('click', function(e){
   else if(a==='toggle-task'){ toggleTask(btn.dataset.id, btn.dataset.done==='true'); }
   else if(a==='edit-task-start'){state.tasks.editingId=btn.dataset.id;renderMain();}
   else if(a==='edit-task-cancel'){state.tasks.editingId=null;renderMain();}
-  else if(a==='move-to-tracker'){moveToTracker(btn.dataset.id);}
   else if(a==='delete-task'){ if(confirm('Удалить задачу?')) deleteTask(btn.dataset.id); }
   else if(a==='edit-tracker-start'){state.tracker.editingId=btn.dataset.id;renderMain();}
   else if(a==='edit-tracker-cancel'){state.tracker.editingId=null;renderMain();}
