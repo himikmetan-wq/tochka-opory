@@ -183,6 +183,10 @@ input,textarea{font-family:inherit;font-size:15px;}
 textarea.input{resize:vertical;min-height:44px;}
 .add-row{display:flex;flex-wrap:wrap;gap:8px;align-items:flex-start;margin-bottom:14px;}
 .add-row .grow{flex:1 1 160px;}
+.add-row.quick-add{flex-wrap:nowrap;align-items:stretch;}
+.quick-add .grow{flex:1;min-width:0;}
+.quick-add .add-plus{width:40px;min-width:40px;padding:0;border-radius:10px;font-size:26px;line-height:1;display:flex;align-items:center;justify-content:center;}
+.quick-add textarea.input{min-height:88px;}
 .row{display:flex;gap:8px;align-items:center;}
 .row.between{justify-content:space-between;}
 .btn-row{display:flex;gap:8px;flex-wrap:wrap;}
@@ -485,6 +489,8 @@ function addDays(d,n){ var r=new Date(d); r.setDate(r.getDate()+n); return r; }
 function mondayOf(d){ var wd=(d.getDay()+6)%7; return addDays(d,-wd); }
 function fmtMoney(n){ n=Number(n)||0; return new Intl.NumberFormat('ru-RU',{maximumFractionDigits:0}).format(n)+' ₽'; }
 function fmtFinanceMoney(n){ n=Number(n)||0; return Math.abs(n)>=1000 ? new Intl.NumberFormat('ru-RU',{maximumFractionDigits:2}).format(n/1000)+'К' : fmtMoney(n); }
+function fmtBudgetMoney(n){ return fmtFinanceMoney(n).replace(/К$/, ' К'); }
+function fmtBudgetSigned(n){ return (n<0?'−':(n>0?'+':''))+fmtBudgetMoney(Math.abs(n)); }
 function fmtFinanceSigned(n){ return (n<0?'−':(n>0?'+':''))+fmtFinanceMoney(Math.abs(n)); }
 function fmtSigned(n){ var s=fmtMoney(Math.abs(n)); return (n<0?'−':(n>0?'+':''))+s; }
 function fmtDateHuman(key){ var d=parseKey(key); return d.getDate()+' '+MONTHS_GEN[d.getMonth()]+' '+d.getFullYear(); }
@@ -915,9 +921,9 @@ function renderJournal(){
   var label = MONTHS_NOM[st.month]+' '+st.year;
   var html = '<div class="card">';
   html += '<div class="section-title">'+fmtDateHuman(st.selected)+'</div>';
-  html += '<form class="add-row" data-action="add-journal-entry">';
-  html += '<textarea class="input grow" name="text" rows="2" maxlength="600" placeholder="Что сегодня получилось, за что себя похвалить..." required></textarea>';
-  html += '<button type="submit" class="btn btn-primary">Добавить</button>';
+  html += '<form class="add-row quick-add" data-action="add-journal-entry">';
+  html += '<textarea class="input grow" name="text" rows="3" maxlength="600" placeholder="Что сегодня получилось, за что себя похвалить..." required></textarea>';
+  html += '<button type="submit" class="btn btn-primary add-plus" aria-label="Добавить успех">+</button>';
   html += '</form>';
   if(st.dayLoading){
     html += '<div class="skeleton"></div><div class="skeleton" style="width:70%"></div>';
@@ -1081,9 +1087,9 @@ function renderTasks(){
   var counts = taskCounts(st.items);
 
   var html = '<div class="card">';
-  html += '<form class="add-row" data-action="add-task">';
+  html += '<form class="add-row quick-add" data-action="add-task">';
   html += '<input class="input grow" type="text" name="text" maxlength="200" placeholder="Новая задача" required>';
-  html += '<button type="submit" class="btn btn-primary">Добавить</button>';
+  html += '<button type="submit" class="btn btn-primary add-plus" aria-label="Добавить дело">+</button>';
   html += '</form>';
 
   if(st.loading){
@@ -1262,9 +1268,9 @@ function trackerSubtaskRow(t,s){
 }
 function renderTracker(){
   var st=state.tracker,html='<div class="card"><div class="section-title">Трекер длинных дел</div><div class="hint" style="margin-bottom:12px">Разбей большое дело на шаги. Когда все шаги выполнены, дело завершится и появится в успехах.</div>';
-  html+='<form class="add-row" data-action="add-tracker"><input class="input grow" name="text" maxlength="200" placeholder="Большое дело" required><button class="btn btn-primary" type="submit">Добавить</button></form>';
+  html+='<form class="add-row quick-add" data-action="add-tracker"><input class="input grow" name="text" maxlength="200" placeholder="Большое дело" required><button class="btn btn-primary add-plus" type="submit" aria-label="Добавить длинное дело">+</button></form>';
   if(st.loading)html+=skeleton(2);
-  else if(!st.items.length)html+='<div class="empty-state">Пока нет длинных дел. Добавь новое или перенеси дело из вкладки «Дела» кнопкой ↗.</div>';
+  else if(!st.items.length)html+='<div class="empty-state">Пока нет длинных дел. Добавь новое и разбей его на шаги.</div>';
   else html+=st.items.slice().sort(function(a,b){return Number(a.done)-Number(b.done);}).map(function(t){
     var subs=t.subtasks||[], n=subs.filter(function(s){return s.done;}).length;
     var out='<div class="tracker-item">';
@@ -1819,12 +1825,12 @@ function renderBudget(){
     html += '<input type="hidden" name="cushion" value="'+(doc.cushion||0)+'">';
     html += '<input type="hidden" name="plannedIncome" value="'+(doc.plannedIncome||0)+'">';
     html += '<div class="budget-meta-display">'
-      + '<div class="row between"><span class="muted">Заложено на месяц</span><span class="budget-meta-value-wrap"><span class="mono budget-meta-value">'+fmtMoney(doc.plannedIncome||0)+'</span><button type="button" class="champion-pencil" data-action="budget-edit-meta-start" aria-label="Редактировать">✎</button></span></div>'
-      + '<div class="row between"><span class="muted">Подушка безопасности (сейчас)</span><span class="budget-meta-value-wrap"><span class="mono budget-meta-value">'+fmtMoney(doc.cushion||0)+'</span><button type="button" class="champion-pencil" data-action="budget-edit-meta-start" aria-label="Редактировать">✎</button></span></div>'
+      + '<div class="row between"><span class="muted">Заложено на месяц</span><span class="budget-meta-value-wrap"><span class="mono budget-meta-value">'+fmtBudgetMoney(doc.plannedIncome||0)+'</span><button type="button" class="champion-pencil" data-action="budget-edit-meta-start" aria-label="Редактировать">✎</button></span></div>'
+      + '<div class="row between"><span class="muted">Подушка безопасности (сейчас)</span><span class="budget-meta-value-wrap"><span class="mono budget-meta-value">'+fmtBudgetMoney(doc.cushion||0)+'</span><button type="button" class="champion-pencil" data-action="budget-edit-meta-start" aria-label="Редактировать">✎</button></span></div>'
       + '</div>';
   }
-  html += '<div class="row between budget-meta-required"><span class="muted">Требуется на месяц</span><span class="mono budget-meta-value" style="font-weight:700">'+fmtMoney(planned)+'</span></div>';
-  html += '<div class="row between"><span class="muted">Доходов за текущий месяц</span><span class="mono budget-meta-value" style="font-weight:700;color:var(--positive)">'+fmtMoney(st.actual.income)+'</span></div>';
+  html += '<div class="row between budget-meta-required"><span class="muted">Требуется на месяц</span><span class="mono budget-meta-value" style="font-weight:700">'+fmtBudgetMoney(planned)+'</span></div>';
+  html += '<div class="row between"><span class="muted">Доходов за текущий месяц</span><span class="mono budget-meta-value" style="font-weight:700;color:var(--positive)">'+fmtBudgetMoney(st.actual.income)+'</span></div>';
   html += '<div class="btn-row">';
   if(st.editingMeta) html += '<button type="button" class="champion-link" data-action="budget-edit-meta-cancel">Отмена</button>';
   html += '<button type="submit" class="btn btn-primary btn-sm">Сохранить</button>';
@@ -1845,14 +1851,14 @@ function renderBudget(){
     html += doc.items.map(function(it){
       return '<div class="budget-item-row'+(it.paid?' paid':'')+'">'
         + '<button class="checkbox '+(it.paid?'checked':'')+'" type="button" data-action="toggle-budget-item-paid" data-id="'+it.id+'" aria-label="Отметить оплаченным"></button>'
-        + '<span class="name">'+esc(it.name)+'</span><span class="amount mono">'+fmtMoney(it.amount)+'</span><button class="icon-btn danger" data-action="delete-budget-item" data-id="'+it.id+'">×</button></div>';
+        + '<span class="name">'+esc(it.name)+'</span><span class="amount mono">'+fmtBudgetMoney(it.amount)+'</span><button class="icon-btn danger" data-action="delete-budget-item" data-id="'+it.id+'">×</button></div>';
     }).join('');
   }
   var paidSum = (doc.items||[]).concat(doc.extraItems||[]).filter(function(it){ return it.paid; }).reduce(function(s,it){ return s+it.amount; },0);
   html += '<div class="divider"></div>';
-  html += '<div class="row between"><span>Итого плановых трат</span><span class="mono" style="font-weight:600">'+fmtMoney(itemsPlanned)+'</span></div>';
-  html += '<div class="row between"><span>Итого доп. трат</span><span class="mono" style="font-weight:600">'+fmtMoney(extraPlanned)+'</span></div>';
-  html += '<div class="row between"><span>Вычеркнуто (оплачено)</span><span class="mono" style="font-weight:600;color:var(--positive)">'+fmtMoney(paidSum)+'</span></div>';
+  html += '<div class="row between"><span>Итого плановых трат</span><span class="mono" style="font-weight:600">'+fmtBudgetMoney(itemsPlanned)+'</span></div>';
+  html += '<div class="row between"><span>Итого доп. трат</span><span class="mono" style="font-weight:600">'+fmtBudgetMoney(extraPlanned)+'</span></div>';
+  html += '<div class="row between"><span>Вычеркнуто (оплачено)</span><span class="mono" style="font-weight:600;color:var(--positive)">'+fmtBudgetMoney(paidSum)+'</span></div>';
   html += '</div>';
 
   html += '<div class="card">';
@@ -1868,12 +1874,12 @@ function renderBudget(){
     html += doc.extraItems.map(function(it){
       return '<div class="budget-item-row'+(it.paid?' paid':'')+'">'
         + '<button class="checkbox '+(it.paid?'checked':'')+'" type="button" data-action="toggle-budget-extra-item-paid" data-id="'+it.id+'" aria-label="Отметить оплаченным"></button>'
-        + '<span class="name">'+esc(it.name)+'</span><span class="amount mono">'+fmtMoney(it.amount)+'</span><button class="icon-btn danger" data-action="delete-budget-extra-item" data-id="'+it.id+'">×</button></div>';
+        + '<span class="name">'+esc(it.name)+'</span><span class="amount mono">'+fmtBudgetMoney(it.amount)+'</span><button class="icon-btn danger" data-action="delete-budget-extra-item" data-id="'+it.id+'">×</button></div>';
     }).join('');
   }
   html += '<div class="divider"></div>';
-  html += '<div class="row between"><span>Итого доп. расходов</span><span class="mono" style="font-weight:600">'+fmtMoney(extraPlanned)+'</span></div>';
-  html += '<div class="row between"><span>Остаток после месяца (план)</span><span class="mono" style="font-weight:700;color:'+(afterMonth>=0?'var(--positive)':'var(--negative)')+'">'+fmtSigned(afterMonth)+'</span></div>';
+  html += '<div class="row between"><span>Итого доп. расходов</span><span class="mono" style="font-weight:600">'+fmtBudgetMoney(extraPlanned)+'</span></div>';
+  html += '<div class="row between"><span>Остаток после месяца (план)</span><span class="mono" style="font-weight:700;color:'+(afterMonth>=0?'var(--positive)':'var(--negative)')+'">'+fmtBudgetSigned(afterMonth)+'</span></div>';
   html += '</div>';
 
   return html;
