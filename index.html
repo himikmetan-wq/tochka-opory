@@ -381,9 +381,8 @@ a{color:var(--accent);}
 .boot-splash.launching::before{animation:none;opacity:.95;transform:scale(1.35);}
 .boot-splash.launching .boot-focus{opacity:1;}
 .boot-splash.launching .boot-target{filter:drop-shadow(5px 7px 0 rgba(5,27,22,.24));}
-.boot-reveal{position:fixed;z-index:2005;left:50%;top:50%;width:12px;height:12px;border-radius:50%;overflow:hidden;opacity:0;transform:translate(-50%,-50%) scale(0);transform-origin:center;background:var(--bg);box-shadow:0 0 0 2px #d9a75c,0 0 0 3px rgba(217,167,92,.18);pointer-events:none;will-change:transform,opacity;}
-.boot-reveal-inner{position:absolute;left:50%;top:50%;width:100vw;height:100vh;transform:translate(-50%,-50%);overflow:hidden;background:var(--bg);}
-.boot-splash.launching .boot-reveal{animation:boot-iris .78s .18s cubic-bezier(.55,.02,.18,1) forwards;}
+.boot-splash{transform-origin:50% 0;will-change:transform,filter;box-shadow:0 18px 50px rgba(5,24,20,0);}
+.boot-splash.launching{animation:boot-panel-up .82s .18s cubic-bezier(.72,.02,.22,1) forwards;}
 .boot-splash.done{opacity:0;pointer-events:none;}
 @keyframes boot-ring{to{stroke-dashoffset:0;}}
 @keyframes boot-search{0%{opacity:0;transform:rotate(-130deg) scale(.72)}18%{opacity:1;transform:rotate(105deg) scale(1)}38%{transform:rotate(-72deg)}57%{transform:rotate(55deg)}73%{transform:rotate(-28deg)}86%{transform:rotate(12deg)}100%{opacity:1;transform:rotate(0deg) scale(1)}}18%{opacity:1;transform:rotate(105deg) scale(1)}38%{transform:rotate(-72deg)}57%{transform:rotate(55deg)}73%{transform:rotate(-28deg)}86%{transform:rotate(36deg)}100%{opacity:1;transform:rotate(50deg) scale(1)}}18%{opacity:1;transform:rotate(105deg) scale(1)}38%{transform:rotate(-72deg)}57%{transform:rotate(55deg)}73%{transform:rotate(-28deg)}86%{transform:rotate(24deg)}100%{opacity:1;transform:rotate(38deg) scale(1)}}
@@ -392,8 +391,8 @@ a{color:var(--accent);}
 @keyframes boot-final{to{opacity:1;transform:translateY(0)}}
 @keyframes boot-glow{to{opacity:.55;transform:scale(1.12)}}
 @keyframes boot-pulse{50%{opacity:.22}}
-@keyframes boot-iris{0%{opacity:1;transform:translate(-50%,-50%) scale(0)}14%{opacity:1;transform:translate(-50%,-50%) scale(.9)}100%{opacity:1;transform:translate(-50%,-50%) scale(190);box-shadow:0 0 0 2px #d9a75c,0 0 0 3px rgba(217,167,92,0)}}28%{transform:translate3d(1.5vw,1.5vh,0) rotate(.4deg);filter:drop-shadow(-8px -12px 12px rgba(0,0,0,.18))}100%{transform:translate3d(78vw,72vh,0) rotate(5deg);filter:drop-shadow(-18px -24px 22px rgba(0,0,0,.28))}}24%{opacity:1;transform:translate(calc(-50% + 1px),calc(-50% - 1px)) scale(.018);border-radius:50%}38%{opacity:1;transform:translate(calc(-50% + 3px),calc(-50% - 5px)) scale(.055);border-radius:50%}50%{opacity:1;transform:translate(calc(-50% + 11px),calc(-50% - 17px)) scale(.19);border-radius:46%}62%{opacity:1;transform:translate(calc(-50% + 22px),calc(-50% - 29px)) scale(.72);border-radius:40%}74%{opacity:1;transform:translate(calc(-50% - 15px),calc(-50% + 13px)) scale(4.8);border-radius:24%}84%{opacity:1;transform:translate(calc(-50% + 5px),calc(-50% - 4px)) scale(42);border-radius:10%}93%{opacity:1;transform:translate(-50%,-50%) scale(760);border-radius:2%;box-shadow:0 0 34px 12px rgba(245,198,111,.12)}100%{opacity:1;transform:translate(-50%,-50%) scale(900);border-radius:0;box-shadow:none}}
-@media(prefers-reduced-motion:reduce){.boot-splash::before,.boot-focus *{animation:none!important}.boot-ring{stroke-dashoffset:0}.boot-needle{transform:rotate(0deg)}.boot-target{opacity:1;transform:none}.boot-splash.launching{opacity:0;transition:opacity .2s}.boot-reveal{display:none}}.boot-ring{stroke-dashoffset:0}.boot-needle{transform:rotate(0deg)}.boot-target{opacity:1;transform:none}.boot-splash.launching{opacity:0;transition:opacity .2s}.boot-splash.launching .boot-slice,.boot-splash.launching .boot-cut{display:none}}.boot-ring{stroke-dashoffset:0}.boot-needle{transform:rotate(0deg)}.boot-target,.boot-final{opacity:1;transform:none}.boot-splash.launching .boot-focus{opacity:0}.boot-splash.launching .boot-portal{animation:none!important;opacity:1;inset:0;width:auto;height:auto;transform:none;border-radius:0}.boot-splash.done{opacity:0;}}
+@keyframes boot-panel-up{0%{transform:translate3d(0,0,0) perspective(900px) rotateX(0deg);box-shadow:0 18px 50px rgba(5,24,20,0)}18%{transform:translate3d(0,-1.5vh,0) perspective(900px) rotateX(-.35deg);box-shadow:0 22px 44px rgba(5,24,20,.18)}100%{transform:translate3d(0,-108vh,0) perspective(900px) rotateX(-2.2deg);box-shadow:0 30px 55px rgba(5,24,20,.30)}}14%{opacity:1;transform:translate(-50%,-50%) scale(.9)}100%{opacity:1;transform:translate(-50%,-50%) scale(190);box-shadow:0 0 0 2px #d9a75c,0 0 0 3px rgba(217,167,92,0)}}28%{transform:translate3d(1.5vw,1.5vh,0) rotate(.4deg);filter:drop-shadow(-8px -12px 12px rgba(0,0,0,.18))}100%{transform:translate3d(78vw,72vh,0) rotate(5deg);filter:drop-shadow(-18px -24px 22px rgba(0,0,0,.28))}}24%{opacity:1;transform:translate(calc(-50% + 1px),calc(-50% - 1px)) scale(.018);border-radius:50%}38%{opacity:1;transform:translate(calc(-50% + 3px),calc(-50% - 5px)) scale(.055);border-radius:50%}50%{opacity:1;transform:translate(calc(-50% + 11px),calc(-50% - 17px)) scale(.19);border-radius:46%}62%{opacity:1;transform:translate(calc(-50% + 22px),calc(-50% - 29px)) scale(.72);border-radius:40%}74%{opacity:1;transform:translate(calc(-50% - 15px),calc(-50% + 13px)) scale(4.8);border-radius:24%}84%{opacity:1;transform:translate(calc(-50% + 5px),calc(-50% - 4px)) scale(42);border-radius:10%}93%{opacity:1;transform:translate(-50%,-50%) scale(760);border-radius:2%;box-shadow:0 0 34px 12px rgba(245,198,111,.12)}100%{opacity:1;transform:translate(-50%,-50%) scale(900);border-radius:0;box-shadow:none}}
+@media(prefers-reduced-motion:reduce){.boot-splash::before,.boot-focus *{animation:none!important}.boot-ring{stroke-dashoffset:0}.boot-needle{transform:rotate(0deg)}.boot-target{opacity:1;transform:none}.boot-splash.launching{animation:none;opacity:0;transition:opacity .2s}}.boot-ring{stroke-dashoffset:0}.boot-needle{transform:rotate(0deg)}.boot-target{opacity:1;transform:none}.boot-splash.launching{opacity:0;transition:opacity .2s}.boot-reveal{display:none}}.boot-ring{stroke-dashoffset:0}.boot-needle{transform:rotate(0deg)}.boot-target{opacity:1;transform:none}.boot-splash.launching{opacity:0;transition:opacity .2s}.boot-splash.launching .boot-slice,.boot-splash.launching .boot-cut{display:none}}.boot-ring{stroke-dashoffset:0}.boot-needle{transform:rotate(0deg)}.boot-target,.boot-final{opacity:1;transform:none}.boot-splash.launching .boot-focus{opacity:0}.boot-splash.launching .boot-portal{animation:none!important;opacity:1;inset:0;width:auto;height:auto;transform:none;border-radius:0}.boot-splash.done{opacity:0;}}
 </style>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;600;700&family=Golos+Text:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap">
 </head>
@@ -416,7 +415,7 @@ a{color:var(--accent);}
     <p class="boot-copy">Главное — продолжать.</p>
     <div class="boot-status"><span class="boot-pulse" aria-hidden="true"></span><span id="boot-status-text" class="boot-sr-only">Загрузка…</span></div>
   </div>
-  <div id="boot-reveal" class="boot-reveal" aria-hidden="true"><div id="boot-reveal-inner" class="boot-reveal-inner"></div></div>
+
 </div>
 <script>
 (function(){
@@ -429,16 +428,8 @@ a{color:var(--accent);}
     setTimeout(function(){
       var el=document.getElementById('boot-splash');
       if(!el)return;
-      var reveal=document.getElementById('boot-reveal-inner');
-      var app=document.getElementById('app');
-      if(reveal && app){
-        var clone=app.cloneNode(true);
-        clone.removeAttribute('id');
-        clone.querySelectorAll('[id]').forEach(function(node){node.removeAttribute('id');});
-        reveal.appendChild(clone);
-      }
       el.classList.add('launching');
-      setTimeout(function(){el.classList.add('done');setTimeout(function(){el.remove();},70);},1030);
+      setTimeout(function(){el.classList.add('done');setTimeout(function(){el.remove();},60);},1080);
     },wait);
   };
   window.setBootStatus=function(text){var el=document.getElementById('boot-status-text');if(el)el.textContent=text;};
