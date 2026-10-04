@@ -290,6 +290,9 @@ details.done-section summary{cursor:pointer;font-size:13px;color:var(--text-mute
 .budget-item-row.paid .name{text-decoration:line-through;color:var(--text-muted);}
 .budget-item-row.paid .amount{text-decoration:line-through;color:var(--text-muted);}
 
+.budget-meta-display{position:relative;display:flex;flex-direction:column;gap:8px;padding-right:34px;}
+.budget-meta-pencil{position:absolute;top:0;right:0;}
+
 .empty-state{text-align:center;padding:26px 10px;color:var(--text-muted);font-size:13.5px;}
 .empty-state .big{font-size:26px;margin-bottom:6px;}
 
@@ -596,7 +599,7 @@ var state = {
   tracker:{ items:[], tasks:[], loading:true, editingId:null, editingSubtask:null },
   notes:{ items:[], loading:true, editingId:null, draft:'' },
   finance:{ period:'month', anchor:todayKey(), customFrom:todayKey(), customTo:todayKey(), rows:[], loading:true },
-  budget:{ year:new Date().getFullYear(), month:new Date().getMonth(), doc:null, loading:true, actual:{income:0,expense:0} },
+  budget:{ year:new Date().getFullYear(), month:new Date().getMonth(), doc:null, loading:true, actual:{income:0,expense:0}, editingMeta:false },
   summary:{ loading:true },
   coach:{ index: coachHistory[0] },
   champion:{ loading:true, items:[], log:{}, streak:0, todayDone:false, editing:false, draftItems:null, pending:{} }
@@ -1661,6 +1664,7 @@ function renderFinance(){
    ========================================================= */
 async function loadBudget(){
   state.budget.loading = true;
+  state.budget.editingMeta = false;
   renderMain();
   var key = monthKey(state.budget.year, state.budget.month);
   var snap = await safe(refBudgetDoc(key).get(), 'Не удалось загрузить бюджет');
@@ -1675,7 +1679,9 @@ async function loadBudget(){
   state.budget.loading = false;
   renderMain();
 }
-function emptyBudgetDoc(){ return { cushion:0, plannedIncome:0, items:[], notes:'', updatedAt:nowISO() }; }
+function emptyBudgetDoc(){ return { cushion:0, plannedIncome:0, items:[], extraItems:[], updatedAt:nowISO() }; }
+function sumAmounts(list){ return (list||[]).reduce(function(s,it){ return s+it.amount; },0); }
+function budgetPlannedTotal(doc){ return sumAmounts(doc.items) + sumAmounts(doc.extraItems); }
 async function saveBudget(doc){
   var key = monthKey(state.budget.year, state.budget.month);
   doc.updatedAt = nowISO();
@@ -1700,7 +1706,7 @@ async function copyPrevMonth(){
   var doc = emptyBudgetDoc();
   if(prev){
     doc.items = (prev.items||[]).map(function(it){ return {id:uid(), name:it.name, amount:it.amount}; });
-    var prevPlanned = (prev.items||[]).reduce(function(s,it){return s+it.amount;},0);
+    var prevPlanned = budgetPlannedTotal(prev);
     doc.cushion = Math.max(0, (prev.cushion||0) + (prev.plannedIncome||0) - prevPlanned);
     doc.plannedIncome = prev.plannedIncome||0;
   }
@@ -1720,7 +1726,9 @@ function renderBudget(){
   }
 
   var doc = st.doc || emptyBudgetDoc();
-  var planned = (doc.items||[]).reduce(function(s,it){return s+it.amount;},0);
+  var itemsPlanned = sumAmounts(doc.items);
+  var extraPlanned = sumAmounts(doc.extraItems);
+  var planned = itemsPlanned + extraPlanned;
   var afterMonth = (doc.cushion||0) + (doc.plannedIncome||0) - planned;
 
   if(!st.doc){
@@ -1731,10 +1739,22 @@ function renderBudget(){
   }
 
   html += '<form class="stack" data-action="save-budget-meta">';
-  html += '<label class="muted">Подушка безопасности (сейчас)<input class="input mono" type="number" name="cushion" min="0" step="1" value="'+(doc.cushion||0)+'"></label>';
-  html += '<label class="muted">Заложено на месяц<input class="input mono" type="number" name="plannedIncome" min="0" step="1" value="'+(doc.plannedIncome||0)+'"></label>';
-  html += '<label class="muted">Дополнительные плановые расходы<textarea class="input" name="notes" rows="2" maxlength="400">'+esc(doc.notes||'')+'</textarea></label>';
-  html += '<button type="submit" class="btn btn-primary btn-sm" style="align-self:flex-start">Сохранить</button>';
+  if(st.editingMeta){
+    html += '<label class="muted">Подушка безопасности (сейчас)<input class="input mono" type="number" name="cushion" min="0" step="1" value="'+(doc.cushion||0)+'"></label>';
+    html += '<label class="muted">Заложено на месяц<input class="input mono" type="number" name="plannedIncome" min="0" step="1" value="'+(doc.plannedIncome||0)+'"></label>';
+  } else {
+    html += '<input type="hidden" name="cushion" value="'+(doc.cushion||0)+'">';
+    html += '<input type="hidden" name="plannedIncome" value="'+(doc.plannedIncome||0)+'">';
+    html += '<div class="budget-meta-display">'
+      + '<div class="row between"><span class="muted">Подушка безопасности (сейчас)</span><span class="mono budget-meta-value">'+fmtMoney(doc.cushion||0)+'</span></div>'
+      + '<div class="row between"><span class="muted">Заложено на месяц</span><span class="mono budget-meta-value">'+fmtMoney(doc.plannedIncome||0)+'</span></div>'
+      + '<button type="button" class="champion-pencil budget-meta-pencil" data-action="budget-edit-meta-start" aria-label="Редактировать">✎</button>'
+      + '</div>';
+  }
+  html += '<div class="btn-row">';
+  if(st.editingMeta) html += '<button type="button" class="champion-link" data-action="budget-edit-meta-cancel">Отмена</button>';
+  html += '<button type="submit" class="btn btn-primary btn-sm">Сохранить</button>';
+  html += '</div>';
   html += '</form>';
   html += '</div>';
 
@@ -1756,8 +1776,27 @@ function renderBudget(){
   }
   var paidSum = (doc.items||[]).filter(function(it){ return it.paid; }).reduce(function(s,it){ return s+it.amount; },0);
   html += '<div class="divider"></div>';
-  html += '<div class="row between"><span>Итого плановых трат</span><span class="mono" style="font-weight:600">'+fmtMoney(planned)+'</span></div>';
+  html += '<div class="row between"><span>Итого плановых трат</span><span class="mono" style="font-weight:600">'+fmtMoney(itemsPlanned)+'</span></div>';
   html += '<div class="row between"><span>Вычеркнуто (оплачено)</span><span class="mono" style="font-weight:600;color:var(--positive)">'+fmtMoney(paidSum)+'</span></div>';
+  html += '</div>';
+
+  html += '<div class="card">';
+  html += '<div class="section-title">Дополнительные плановые расходы</div>';
+  html += '<form class="add-row" data-action="add-budget-extra-item">';
+  html += '<input class="input grow" type="text" name="name" maxlength="80" placeholder="Название" required>';
+  html += '<input class="input" style="max-width:120px" type="number" name="amount" min="0" step="1" placeholder="Сумма" required>';
+  html += '<button type="submit" class="btn btn-primary btn-sm">+</button>';
+  html += '</form>';
+  if(!doc.extraItems || !doc.extraItems.length){
+    html += '<div class="empty-state">Список пуст — добавьте внеплановые расходы на этот месяц.</div>';
+  } else {
+    html += doc.extraItems.map(function(it){
+      return '<div class="budget-item-row">'
+        + '<span class="name">'+esc(it.name)+'</span><span class="amount mono">'+fmtMoney(it.amount)+'</span><button class="icon-btn danger" data-action="delete-budget-extra-item" data-id="'+it.id+'">×</button></div>';
+    }).join('');
+  }
+  html += '<div class="divider"></div>';
+  html += '<div class="row between"><span>Итого доп. расходов</span><span class="mono" style="font-weight:600">'+fmtMoney(extraPlanned)+'</span></div>';
   html += '<div class="row between"><span>Остаток после месяца (план)</span><span class="mono" style="font-weight:700;color:'+(afterMonth>=0?'var(--positive)':'var(--negative)')+'">'+fmtSigned(afterMonth)+'</span></div>';
   html += '</div>';
 
@@ -1808,7 +1847,7 @@ function renderSummary(){
   html += renderNotes();
 
   if(s.budgetDoc){
-    var planned = (s.budgetDoc.items||[]).reduce(function(a,it){return a+it.amount;},0);
+    var planned = budgetPlannedTotal(s.budgetDoc);
     var after = (s.budgetDoc.cushion||0)+(s.budgetDoc.plannedIncome||0)-planned;
     html += '<div class="card">';
     html += '<div class="section-title">Бюджет на месяц</div>';
@@ -1893,6 +1932,13 @@ document.getElementById('main-content').addEventListener('click', function(e){
     saveBudget(doc);
   }
   else if(a==='toggle-budget-item-paid'){ toggleBudgetItemPaid(btn.dataset.id); }
+  else if(a==='budget-edit-meta-start'){ state.budget.editingMeta = true; renderMain(); }
+  else if(a==='budget-edit-meta-cancel'){ state.budget.editingMeta = false; renderMain(); }
+  else if(a==='delete-budget-extra-item'){
+    var docEx = clone(state.budget.doc || emptyBudgetDoc());
+    docEx.extraItems = (docEx.extraItems||[]).filter(function(it){ return it.id!==btn.dataset.id; });
+    saveBudget(docEx);
+  }
   else if(a==='toggle-champion-item'){ toggleChampionItem(btn.dataset.id); }
   else if(a==='champion-edit-start'){ startChampionEdit(); }
   else if(a==='champion-edit-cancel'){ cancelChampionEdit(); }
@@ -1997,11 +2043,20 @@ document.getElementById('main-content').addEventListener('submit', function(e){
     saveBudget(doc);
     form.reset();
   }
+  else if(a==='add-budget-extra-item'){
+    var nameEx = (fd.get('name')||'').trim();
+    var amtEx = Number(fd.get('amount'));
+    if(!nameEx || !amtEx) return;
+    var docEx2 = clone(state.budget.doc || emptyBudgetDoc());
+    docEx2.extraItems = (docEx2.extraItems||[]).concat([{id:uid(), name:nameEx, amount:amtEx}]);
+    saveBudget(docEx2);
+    form.reset();
+  }
   else if(a==='save-budget-meta'){
     var doc2 = clone(state.budget.doc || emptyBudgetDoc());
     doc2.cushion = Number(fd.get('cushion'))||0;
     doc2.plannedIncome = Number(fd.get('plannedIncome'))||0;
-    doc2.notes = (fd.get('notes')||'').trim();
+    state.budget.editingMeta = false;
     saveBudget(doc2);
   }
 });
