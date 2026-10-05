@@ -366,6 +366,8 @@ a{color:var(--accent);}
 .boot-ring{position:absolute;inset:7px;border:1px solid rgba(244,241,233,.28);border-radius:50%}
 .boot-ring::before{content:'';position:absolute;inset:9px;border:1px solid rgba(244,241,233,.07);border-radius:50%}
 .boot-ring::after{content:'';position:absolute;left:50%;top:-3px;width:6px;height:6px;margin-left:-3px;border-radius:50%;background:#d9a75c;box-shadow:0 0 0 4px rgba(217,167,92,.08)}
+.boot-cardinal{position:absolute;z-index:2;font-family:'Unbounded',sans-serif;font-size:8px;font-weight:500;line-height:1;color:rgba(244,241,233,.48);letter-spacing:.02em;pointer-events:none}
+.boot-cardinal.n{left:50%;top:17px;transform:translateX(-50%)}.boot-cardinal.e{right:17px;top:50%;transform:translateY(-50%)}.boot-cardinal.s{left:50%;bottom:17px;transform:translateX(-50%)}.boot-cardinal.w{left:17px;top:50%;transform:translateY(-50%)}
 .boot-cross{position:absolute;inset:0;opacity:.18;background:linear-gradient(90deg,transparent calc(50% - .5px),#f4f1e9 50%,transparent calc(50% + .5px)),linear-gradient(transparent calc(50% - .5px),#f4f1e9 50%,transparent calc(50% + .5px));clip-path:circle(51px at 50% 50%)}
 .boot-needle{position:absolute;left:50%;top:50%;width:2px;height:38px;margin-left:-1px;margin-top:-38px;background:#d9a75c;transform-origin:50% 100%;transform:rotate(-115deg);animation:boot-lock 1.45s cubic-bezier(.2,.75,.2,1) forwards}
 .boot-needle::after{content:'';position:absolute;left:50%;top:-5px;width:0;height:0;border-left:4px solid transparent;border-right:4px solid transparent;border-bottom:8px solid #d9a75c;transform:translateX(-50%)}
@@ -398,7 +400,7 @@ a{color:var(--accent);}
 <div id="boot-splash" class="boot-splash" role="status" aria-live="polite" aria-label="Загрузка Точки опоры">
   <div class="boot-focus">
     <div class="boot-mark" aria-hidden="true">
-      <div class="boot-ring"></div><div class="boot-cross"></div><div class="boot-needle"></div><div class="boot-hub"></div>
+      <div class="boot-ring"></div><div class="boot-cross"></div><span class="boot-cardinal n">N</span><span class="boot-cardinal e">E</span><span class="boot-cardinal s">S</span><span class="boot-cardinal w">W</span><div class="boot-needle"></div><div class="boot-hub"></div>
     </div>
     <h1 class="boot-title">Точка опоры</h1>
     <div class="boot-line"></div>
