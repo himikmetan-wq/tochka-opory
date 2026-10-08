@@ -30,6 +30,16 @@ jobs:
         with:
           gradle-version: '8.14.3'
 
+      - name: Install Capacitor Android dependencies
+        run: |
+          mkdir -p ../node_modules/@capacitor
+          npm pack @capacitor/android@7.4.3 --pack-destination /tmp
+          mkdir -p ../node_modules/@capacitor/android
+          tar -xzf /tmp/capacitor-android-7.4.3.tgz -C ../node_modules/@capacitor/android --strip-components=1
+          npm pack @capacitor/local-notifications@7.0.3 --pack-destination /tmp
+          mkdir -p ../node_modules/@capacitor/local-notifications
+          tar -xzf /tmp/capacitor-local-notifications-7.0.3.tgz -C ../node_modules/@capacitor/local-notifications --strip-components=1
+
       - name: Generate app icons from base64 source
         run: |
           pip install --quiet pillow
