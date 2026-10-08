@@ -1433,14 +1433,17 @@ async function deleteNote(id){
   if(ok!==null){state.notes.items=state.notes.items.filter(function(n){return n.id!==id;});renderMain();}
 }
 var speechSession=null;
+var noteSaveLock=false;
 function cleanSpeechText(s){return String(s||'').replace(/\s+/g,' ').trim();}
-function appendSpeechPart(base,part){
-  base=cleanSpeechText(base);part=cleanSpeechText(part);
-  if(!part)return base;
-  if(!base)return part;
-  var b=base.toLocaleLowerCase('ru-RU'),p=part.toLocaleLowerCase('ru-RU');
-  if(b===p||b.endsWith(' '+p)||b.endsWith(p))return base;
-  return base+' '+part;
+function mergeSpeechText(base,next){
+  base=cleanSpeechText(base);next=cleanSpeechText(next);
+  if(!next)return base;if(!base)return next;
+  var b=base.toLocaleLowerCase('ru-RU'),n=next.toLocaleLowerCase('ru-RU');
+  if(b===n||b.endsWith(n))return base;
+  if(n.startsWith(b))return next;
+  var bw=b.split(' '),nw=n.split(' '),max=Math.min(bw.length,nw.length);
+  for(var k=max;k>0;k--)if(bw.slice(-k).join(' ')===nw.slice(0,k).join(' '))return cleanSpeechText(base+' '+next.split(' ').slice(k).join(' '));
+  return cleanSpeechText(base+' '+next);
 }
 function paintDictationButton(session,on){
   var button=document.querySelector('[data-action="dictate-note"][data-id="'+session.targetId+'"]');
@@ -1450,10 +1453,21 @@ function paintDictationButton(session,on){
   button.title=on?'Остановить запись':'Продиктовать';
 }
 function stopDictation(reason){
-  var s=speechSession;if(!s)return;
-  s.manualStop=true;s.keepAlive=false;
+  var s=speechSession;if(!s||s.stopping)return;
+  s.stopping=true;s.manualStop=true;s.keepAlive=false;
   if(reason==='hidden')s.saveOnStop=false;
-  try{s.recognition.stop();}catch(e){}
+  try{s.recognition.stop();}catch(e){finishDictation(s);}
+}
+function finishDictation(session){
+  if(speechSession!==session||session.finished)return;
+  session.finished=true;speechSession=null;paintDictationButton(session,false);
+  session.interim='';session.refresh();
+  var finalText=cleanSpeechText(session.field.value);
+  if(session.targetId==='new')state.notes.draft=finalText;
+  if(session.manualStop&&session.saveOnStop&&session.targetId==='new'&&finalText&&finalText!==session.prefix&&!session.saved){
+    session.saved=true;
+    if(!noteSaveLock){noteSaveLock=true;Promise.resolve(addNote(finalText)).finally(function(){noteSaveLock=false;});}
+  }
 }
 function startDictation(targetId){
   if(speechSession){stopDictation('button');return;}
@@ -1461,49 +1475,37 @@ function startDictation(targetId){
   if(!Speech){toast('Распознавание голоса недоступно в этом браузере. Можно написать заметку вручную.');return;}
   var field=targetId==='new'?document.getElementById('new-note-text'):document.getElementById('note-text-'+targetId);
   if(!field)return;
-  var session={targetId:targetId,field:field,prefix:cleanSpeechText(field.value),committed:'',interim:'',recognition:null,manualStop:false,keepAlive:true,saveOnStop:true,restarting:false,fatal:false};
-  speechSession=session;paintDictationButton(session,true);
-  function refreshField(){
+  var session={targetId:targetId,field:field,prefix:cleanSpeechText(field.value),committed:'',interim:'',recognition:null,manualStop:false,keepAlive:true,saveOnStop:true,fatal:false,stopping:false,finished:false,saved:false};
+  session.refresh=function(){
     var value=[session.prefix,session.committed,session.interim].filter(Boolean).join(' ').replace(/\s+/g,' ').trim();
     field.value=value;if(targetId==='new')state.notes.draft=value;
-  }
+  };
+  speechSession=session;paintDictationButton(session,true);
   function launch(){
     if(speechSession!==session||!session.keepAlive||document.hidden)return;
-    var recognition=new Speech();session.recognition=recognition;session.restarting=false;
+    var recognition=new Speech();session.recognition=recognition;
     recognition.lang='ru-RU';recognition.continuous=true;recognition.interimResults=true;recognition.maxAlternatives=1;
     recognition.onresult=function(event){
-      var interim='';
-      for(var i=event.resultIndex;i<event.results.length;i++){
-        var part=cleanSpeechText(event.results[i][0].transcript);
-        if(!part)continue;
-        if(event.results[i].isFinal)session.committed=appendSpeechPart(session.committed,part);
-        else interim=appendSpeechPart(interim,part);
+      var finals='',interim='';
+      for(var i=0;i<event.results.length;i++){
+        var part=cleanSpeechText(event.results[i][0].transcript);if(!part)continue;
+        if(event.results[i].isFinal)finals=mergeSpeechText(finals,part);
+        else interim=part;
       }
-      session.interim=interim;refreshField();
+      if(finals)session.committed=mergeSpeechText(session.committed,finals);
+      session.interim=interim;session.refresh();
     };
     recognition.onerror=function(event){
       if(event.error==='aborted'||event.error==='no-speech')return;
-      if(event.error==='not-allowed'||event.error==='service-not-allowed'){
-        session.fatal=true;session.keepAlive=false;
-        toast('Разрешите микрофон для этого сайта в настройках браузера');
-      }else if(event.error==='audio-capture'){
-        session.fatal=true;session.keepAlive=false;toast('Микрофон недоступен');
-      }
+      if(event.error==='not-allowed'||event.error==='service-not-allowed'){session.fatal=true;session.keepAlive=false;toast('Разрешите микрофон для этого сайта в настройках браузера');}
+      else if(event.error==='audio-capture'){session.fatal=true;session.keepAlive=false;toast('Микрофон недоступен');}
     };
     recognition.onend=function(){
       if(speechSession!==session)return;
-      session.interim='';refreshField();
-      if(session.keepAlive&&!session.manualStop&&!session.fatal&&!document.hidden){
-        session.restarting=true;setTimeout(function(){if(speechSession===session&&session.keepAlive)launch();},180);
-        return;
-      }
-      speechSession=null;paintDictationButton(session,false);
-      var finalText=cleanSpeechText(field.value);
-      if(targetId==='new')state.notes.draft=finalText;
-      if(session.manualStop&&session.saveOnStop&&targetId==='new'&&finalText&&finalText!==session.prefix)addNote(finalText);
+      if(session.keepAlive&&!session.manualStop&&!session.fatal&&!document.hidden){session.interim='';session.refresh();setTimeout(function(){if(speechSession===session&&session.keepAlive)launch();},180);return;}
+      finishDictation(session);
     };
-    try{recognition.start();}
-    catch(e){session.fatal=true;session.keepAlive=false;speechSession=null;paintDictationButton(session,false);toast('Не удалось включить микрофон');}
+    try{recognition.start();}catch(e){session.fatal=true;session.keepAlive=false;finishDictation(session);toast('Не удалось включить микрофон');}
   }
   launch();toast('Слушаю. Нажмите микрофон ещё раз, когда закончите.');
 }
