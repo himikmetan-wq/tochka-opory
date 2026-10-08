@@ -19,7 +19,8 @@
 .account-bar span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:130px}
 .account-bar button{border:1px solid var(--border);background:var(--surface);color:var(--text);border-radius:8px;padding:6px;cursor:pointer;flex:none;}
 #account-control{display:flex;flex-wrap:wrap;align-items:center;justify-content:flex-end;gap:8px 10px;max-width:100%;}
-.header-theme-switch{gap:0;flex:none;}
+ .header-theme-switch{gap:0;flex:none;}
+.quick-launch-btn{width:28px;height:28px;border-radius:50%!important;padding:0!important;display:inline-flex;align-items:center;justify-content:center;font-weight:700;font-size:12px!important;line-height:1;}
 .login-card{max-width:420px;margin:12vh auto 0;padding:28px;text-align:center;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius)}
 .login-card p{color:var(--text-muted);line-height:1.5}
 .login-card button{margin-top:12px;padding:12px 18px;border:0;border-radius:10px;background:var(--accent);color:white;font:inherit;cursor:pointer}
@@ -135,7 +136,9 @@ input,textarea{font-family:inherit;font-size:15px;}
   border-top:1px solid var(--border);
   padding:7px 10px calc(7px + env(safe-area-inset-bottom,0px));
   box-shadow:0 -2px 14px rgba(0,0,0,.05);
+  transform:translateY(0);transition:transform .2s ease;
 }
+.tabbar.tabbar-hidden{transform:translateY(calc(100% + 10px));}
 .tabbar-inner{display:flex;width:100%;max-width:640px;justify-content:space-between;gap:1px;}
 .tabbar-inner{overflow-x:auto;scrollbar-width:none;overscroll-behavior-x:contain;}
 .tabbar-inner::-webkit-scrollbar{display:none;}
@@ -859,6 +862,7 @@ function skeleton(lines){
   return '<div class="card">'+out+'</div>';
 }
 
+var TAB_ORDER=['summary','journal','tasks','tracker','finance','budget'];
 async function switchTab(tab){
   if(speechSession)stopDictation();
   state.tab = tab;
@@ -2124,11 +2128,40 @@ function renderSummary(){
 }
 
 /* ---------- event delegation ---------- */
+/* Mobile bottom navigation: visible while scrolling down; tucked away when scrolling up. */
+var tabbarShell=document.querySelector('.tabbar'), lastScrollY=window.scrollY, scrollTick=false;
+window.addEventListener('scroll',function(){
+  if(scrollTick)return; scrollTick=true;
+  requestAnimationFrame(function(){
+    var y=window.scrollY, delta=y-lastScrollY;
+    if(tabbarShell){
+      if(y<24 || delta>4) tabbarShell.classList.remove('tabbar-hidden');
+      else if(delta<-4) tabbarShell.classList.add('tabbar-hidden');
+    }
+    lastScrollY=y; scrollTick=false;
+  });
+},{passive:true});
+
 document.getElementById('tabbar').addEventListener('click', function(e){
   var btn = e.target.closest('[data-tab]');
   if(!btn) return;
   switchTab(btn.dataset.tab);
 });
+
+/* Horizontal swipe between tabs. Ignore controls so sliders, forms and drag handles stay usable. */
+(function(){
+  var main=document.getElementById('main-content'), sx=0, sy=0, started=false, ignore=false;
+  main.addEventListener('touchstart',function(e){
+    if(e.touches.length!==1)return; var t=e.touches[0]; sx=t.clientX; sy=t.clientY; started=true;
+    ignore=!!e.target.closest('input,textarea,select,button,a,label,.drag-handle,.budget-drag-text,[contenteditable="true"]');
+  },{passive:true});
+  main.addEventListener('touchend',function(e){
+    if(!started||ignore||!e.changedTouches.length){started=false;return;} var t=e.changedTouches[0], dx=t.clientX-sx, dy=t.clientY-sy; started=false;
+    if(Math.abs(dx)<70 || Math.abs(dx)<Math.abs(dy)*1.35)return;
+    var i=TAB_ORDER.indexOf(state.tab); if(i<0)return;
+    var next=dx<0?i+1:i-1; if(next>=0&&next<TAB_ORDER.length){ switchTab(TAB_ORDER[next]); window.scrollTo(0,0); if(tabbarShell)tabbarShell.classList.remove('tabbar-hidden'); }
+  },{passive:true});
+})();
 
 document.getElementById('main-content').addEventListener('click', function(e){
   var btn = e.target.closest('[data-action]');
@@ -2389,7 +2422,9 @@ function boot(){
     themeInput.onchange = function(){ saveTheme(themeInput.checked ? 'dark' : 'light'); };
     var logout = document.createElement('button'); logout.textContent = 'Выйти';
     logout.onclick = function(){ signOut(_auth).catch(function(e){ console.error(e); toast('Не удалось выйти'); }); };
-    control.append(name, themeLabel, logout);
+    var quickLaunch=document.createElement('button'); quickLaunch.className='quick-launch-btn'; quickLaunch.textContent='B'; quickLaunch.title='Настроить быстрый запуск ↑↑'; quickLaunch.setAttribute('aria-label','Настроить быстрый запуск');
+    quickLaunch.onclick=function(){ if(window.TochkaAndroid&&typeof window.TochkaAndroid.openQuickLaunchSettings==='function') window.TochkaAndroid.openQuickLaunchSettings(); else toast('Быстрый запуск доступен в Android-приложении'); };
+    control.append(name, themeLabel, quickLaunch, logout);
     renderTabbar();
     try{ await switchTab('summary'); }
     finally{ window.finishBootSplash(); }
