@@ -51,7 +51,8 @@ public class MainActivity extends BridgeActivity {
                 int latest = j.getInt("versionCode");
                 String versionName = j.optString("versionName", "");
                 String apkUrl = j.getString("apkUrl");
-                if (latest > BuildConfig.VERSION_CODE) {
+                long currentVersion = getPackageManager().getPackageInfo(getPackageName(), 0).getLongVersionCode();
+                if (latest > currentVersion) {
                     runOnUiThread(() -> new AlertDialog.Builder(MainActivity.this)
                         .setTitle("Доступно обновление")
                         .setMessage("Новая версия «Точки опоры» " + versionName + " готова к установке.")
