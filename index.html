@@ -405,6 +405,17 @@ a{color:var(--accent);}
 .journal-day-arrow:active{transform:scale(.9)}
 .journal-day-arrow:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 @media(max-width:420px){.journal-date-nav{grid-template-columns:34px minmax(0,1fr) 34px;gap:5px}.journal-date-nav .section-title{font-size:13.5px}.journal-day-arrow{width:34px;height:34px;font-size:25px}}
+
+/* Smooth page-style transition between main tabs. */
+#main-content.tab-slide-out-left{animation:tabOutLeft 115ms cubic-bezier(.4,0,1,1) both}
+#main-content.tab-slide-out-right{animation:tabOutRight 115ms cubic-bezier(.4,0,1,1) both}
+#main-content.tab-slide-in-left{animation:tabInLeft 190ms cubic-bezier(.2,.75,.25,1) both}
+#main-content.tab-slide-in-right{animation:tabInRight 190ms cubic-bezier(.2,.75,.25,1) both}
+@keyframes tabOutLeft{to{transform:translate3d(-18%,0,0);opacity:.72}}
+@keyframes tabOutRight{to{transform:translate3d(18%,0,0);opacity:.72}}
+@keyframes tabInLeft{from{transform:translate3d(24%,0,0);opacity:.72}to{transform:translate3d(0,0,0);opacity:1}}
+@keyframes tabInRight{from{transform:translate3d(-24%,0,0);opacity:.72}to{transform:translate3d(0,0,0);opacity:1}}
+@media (prefers-reduced-motion:reduce){#main-content[class*="tab-slide-"]{animation:none!important}}
 </style>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;600;700&family=Golos+Text:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap">
 </head>
@@ -863,6 +874,23 @@ function skeleton(lines){
 }
 
 var TAB_ORDER=['summary','journal','tasks','tracker','finance','budget'];
+var tabAnimating=false;
+function switchTabAnimated(tab, direction){
+  if(tabAnimating || tab===state.tab)return;
+  var el=document.getElementById('main-content');
+  if(!el || window.matchMedia('(prefers-reduced-motion: reduce)').matches){switchTab(tab);return;}
+  tabAnimating=true;
+  var outClass=direction>0?'tab-slide-out-left':'tab-slide-out-right';
+  var inClass=direction>0?'tab-slide-in-left':'tab-slide-in-right';
+  el.classList.remove('tab-slide-out-left','tab-slide-out-right','tab-slide-in-left','tab-slide-in-right');
+  el.classList.add(outClass);
+  setTimeout(function(){
+    switchTab(tab);
+    el.classList.remove(outClass);
+    el.classList.add(inClass);
+    setTimeout(function(){el.classList.remove(inClass);tabAnimating=false;},200);
+  },115);
+}
 async function switchTab(tab){
   if(speechSession)stopDictation();
   state.tab = tab;
@@ -2159,7 +2187,7 @@ document.getElementById('tabbar').addEventListener('click', function(e){
     if(!started||ignore||!e.changedTouches.length){started=false;return;} var t=e.changedTouches[0], dx=t.clientX-sx, dy=t.clientY-sy; started=false;
     if(Math.abs(dx)<70 || Math.abs(dx)<Math.abs(dy)*1.35)return;
     var i=TAB_ORDER.indexOf(state.tab); if(i<0)return;
-    var next=dx<0?i+1:i-1; if(next>=0&&next<TAB_ORDER.length){ switchTab(TAB_ORDER[next]); window.scrollTo(0,0); if(tabbarShell)tabbarShell.classList.remove('tabbar-hidden'); }
+    var next=dx<0?i+1:i-1; if(next>=0&&next<TAB_ORDER.length){ switchTabAnimated(TAB_ORDER[next],dx<0?1:-1); window.scrollTo(0,0); if(tabbarShell)tabbarShell.classList.remove('tabbar-hidden'); }
   },{passive:true});
 })();
 
