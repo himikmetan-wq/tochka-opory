@@ -4,36 +4,24 @@
     "project_id": "tochka-opory-2f30a",
     "storage_bucket": "tochka-opory-2f30a.firebasestorage.app"
   },
-  "client": [
-    {
-      "client_info": {
-        "mobilesdk_app_id": "1:463727981974:android:2baff465df5bd9887999b7",
-        "android_client_info": {
-          "package_name": "ru.tochkaopory.app"
+  "client": [{
+    "client_info": {
+      "mobilesdk_app_id": "1:463727981974:android:2baff465df5bd9887999b7",
+      "android_client_info": {"package_name": "ru.tochkaopory.app"}
+    },
+    "oauth_client": [
+      {
+        "client_id": "463727981974-l7m5ci13i3k3imt6e77jb43csg3jtbcl.apps.googleusercontent.com",
+        "client_type": 1,
+        "android_info": {
+          "package_name": "ru.tochkaopory.app",
+          "certificate_hash": "75d4d5316e2d40ba836cdea19bffb32451b2b391"
         }
       },
-      "oauth_client": [
-        {
-          "client_id": "463727981974-basdoluqeditgt60hk4jeq9kblvt80f2.apps.googleusercontent.com",
-          "client_type": 3
-        }
-      ],
-      "api_key": [
-        {
-          "current_key": "AIzaSyC6iapAQRQEdmuAFTnZuKvr134uzPFz-80"
-        }
-      ],
-      "services": {
-        "appinvite_service": {
-          "other_platform_oauth_client": [
-            {
-              "client_id": "463727981974-basdoluqeditgt60hk4jeq9kblvt80f2.apps.googleusercontent.com",
-              "client_type": 3
-            }
-          ]
-        }
-      }
-    }
-  ],
+      {"client_id": "463727981974-basdoluqeditgt60hk4jeq9kblvt80f2.apps.googleusercontent.com","client_type": 3}
+    ],
+    "api_key": [{"current_key": "AIzaSyC6iapAQRQEdmuAFTnZuKvr134uzPFz-80"}],
+    "services": {"appinvite_service":{"other_platform_oauth_client":[{"client_id":"463727981974-basdoluqeditgt60hk4jeq9kblvt80f2.apps.googleusercontent.com","client_type":3}]}}
+  }],
   "configuration_version": "1"
 }
