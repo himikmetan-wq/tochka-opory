@@ -70,3 +70,5 @@ jobs:
           git add tochka-opory.apk
           git commit -m "Publish Android APK v1.2" || exit 0
           git push
+
+# rebuild after signing key rotation
