@@ -4,6 +4,9 @@ import android.app.AlertDialog;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
+import android.provider.Settings;
+import android.webkit.JavascriptInterface;
+import android.widget.Toast;
 
 import com.getcapacitor.BridgeActivity;
 
@@ -19,18 +22,29 @@ public class MainActivity extends BridgeActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        getBridge().getWebView().addJavascriptInterface(new AndroidBridge(), "TochkaAndroid");
         checkForUpdate();
+    }
+
+    public class AndroidBridge {
+        @JavascriptInterface
+        public void openQuickLaunchSettings() {
+            runOnUiThread(() -> {
+                Toast.makeText(MainActivity.this,
+                    "Включите «Точка опоры — быстрый запуск»",
+                    Toast.LENGTH_LONG).show();
+                startActivity(new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS));
+            });
+        }
     }
 
     private void checkForUpdate() {
         new Thread(() -> {
             try {
                 HttpURLConnection c = (HttpURLConnection) new URL(VERSION_URL + "?t=" + System.currentTimeMillis()).openConnection();
-                c.setConnectTimeout(5000);
-                c.setReadTimeout(5000);
+                c.setConnectTimeout(5000); c.setReadTimeout(5000);
                 BufferedReader r = new BufferedReader(new InputStreamReader(c.getInputStream()));
-                StringBuilder b = new StringBuilder();
-                String line;
+                StringBuilder b = new StringBuilder(); String line;
                 while ((line = r.readLine()) != null) b.append(line);
                 r.close();
                 JSONObject j = new JSONObject(b.toString());
