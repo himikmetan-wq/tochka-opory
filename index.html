@@ -392,6 +392,14 @@ a{color:var(--accent);}
 @keyframes boot-open{0%{opacity:0;transform:translate(-50%,-50%) scale(0)}18%{opacity:.22}100%{opacity:0;transform:translate(-50%,-50%) scale(90)}}
 @keyframes boot-clear{0%,28%{background:#0d3a31}100%{background:rgba(13,58,49,0)}}
 @media(prefers-reduced-motion:reduce){.boot-splash::before,.boot-needle,.boot-title,.boot-line,.boot-copy,.boot-status::after{animation:none!important}.boot-needle{transform:rotate(0)}.boot-splash.launching{opacity:0;transition:opacity .25s}}
+
+.journal-date-nav{display:grid;grid-template-columns:38px minmax(0,1fr) 38px;align-items:center;gap:8px;margin:0 0 12px}
+.journal-date-nav .section-title{margin:0;text-align:center;font-size:15px;letter-spacing:.055em;color:var(--text)}
+.journal-day-arrow{width:38px;height:38px;padding:0;border:0;background:transparent;color:var(--text-muted);border-radius:10px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:28px;font-weight:300;line-height:1;transition:background .15s ease,color .15s ease,transform .12s ease}
+.journal-day-arrow:hover{background:var(--surface-2);color:var(--accent)}
+.journal-day-arrow:active{transform:scale(.9)}
+.journal-day-arrow:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+@media(max-width:420px){.journal-date-nav{grid-template-columns:34px minmax(0,1fr) 34px;gap:5px}.journal-date-nav .section-title{font-size:13.5px}.journal-day-arrow{width:34px;height:34px;font-size:25px}}
 </style>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;600;700&family=Golos+Text:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap">
 </head>
@@ -1003,7 +1011,7 @@ function renderJournal(){
   var st = state.journal;
   var label = MONTHS_NOM[st.month]+' '+st.year;
   var html = '<div class="card">';
-  html += '<div class="section-title">'+fmtDateHuman(st.selected)+'</div>';
+  html += '<div class="journal-date-nav"><button type="button" class="journal-day-arrow" data-action="journal-prev-day" aria-label="Предыдущий день">‹</button><div class="section-title">'+fmtDateHuman(st.selected)+'</div><button type="button" class="journal-day-arrow" data-action="journal-next-day" aria-label="Следующий день">›</button></div>';
   html += '<form class="add-row quick-add" data-action="add-journal-entry">';
   html += '<textarea class="input grow" name="text" rows="3" maxlength="600" placeholder="Что сегодня получилось, за что себя похвалить..." required></textarea>';
   html += '<button type="submit" class="btn btn-primary add-plus" aria-label="Добавить успех">+</button>';
@@ -2085,6 +2093,8 @@ document.getElementById('main-content').addEventListener('click', function(e){
   else if(a==='export-data'){ exportData(); }
   else if(a==='abandon-task-start'){ state.tasks.abandoningId = btn.dataset.id; renderMain(); }
   else if(a==='abandon-task-cancel'){ state.tasks.abandoningId = null; renderMain(); }
+  else if(a==='journal-prev-day'){ var jd=parseKey(state.journal.selected); jd=addDays(jd,-1); var jk=fmtKey(jd); state.journal.year=jd.getFullYear(); state.journal.month=jd.getMonth(); loadJournalDay(jk); }
+  else if(a==='journal-next-day'){ var jn=parseKey(state.journal.selected); jn=addDays(jn,1); var nk=fmtKey(jn); state.journal.year=jn.getFullYear(); state.journal.month=jn.getMonth(); loadJournalDay(nk); }
   else if(a==='journal-prev-month'){ var s=state.journal; s.month--; if(s.month<0){s.month=11;s.year--;} s.selected=fmtKey(new Date(s.year,s.month,Math.min(parseKey(s.selected).getDate(),new Date(s.year,s.month+1,0).getDate()))); loadJournalMonth(); }
   else if(a==='journal-next-month'){ var s2=state.journal; s2.month++; if(s2.month>11){s2.month=0;s2.year++;} s2.selected=fmtKey(new Date(s2.year,s2.month,Math.min(parseKey(s2.selected).getDate(),new Date(s2.year,s2.month+1,0).getDate()))); loadJournalMonth(); }
   else if(a==='journal-select-day'){ loadJournalDay(btn.dataset.key); }
