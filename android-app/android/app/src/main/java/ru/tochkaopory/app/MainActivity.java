@@ -32,7 +32,7 @@ public class MainActivity extends BridgeActivity {
         super.onCreate(savedInstanceState);
         getBridge().getWebView().addJavascriptInterface(new AndroidBridge(), "TochkaAndroid");
         GoogleSignInOptions gso = new GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
-            .requestIdToken("463727981974-a201ad105cc2e51e7999b7.apps.googleusercontent.com")
+            .requestIdToken("463727981974-basdoluqeditgt60hk4jeq9kblvt80f2.apps.googleusercontent.com")
             .requestEmail()
             .build();
         googleSignInClient = GoogleSignIn.getClient(this, gso);
