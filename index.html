@@ -488,7 +488,7 @@ a{color:var(--accent);}
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-app.js";
-import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-auth.js";
+import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithCredential, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-auth.js";
 import {
   getFirestore, doc, getDoc, setDoc, updateDoc, deleteDoc,
   collection, addDoc, getDocs, query, where, orderBy, limit, runTransaction
@@ -2328,10 +2328,25 @@ function showLogin(){
   document.getElementById('tabbar').innerHTML = '';
   document.getElementById('main-content').innerHTML = '<div class="login-card"><h1>Точка опоры</h1><p>Войдите через Google, чтобы ваши записи, задачи и финансы сохранялись только в вашем аккаунте.</p><button id="google-login">Войти через Google</button></div>';
   document.getElementById('google-login').onclick = async function(){
-    try { await signInWithPopup(_auth, new GoogleAuthProvider()); }
-    catch(e){ console.error(e); toast(e.code==='auth/unauthorized-domain'?'Добавьте домен сайта в Firebase Authentication':'Не удалось войти через Google'); }
+    try {
+      if(window.TochkaAndroid && typeof window.TochkaAndroid.googleSignIn === 'function'){
+        window.TochkaAndroid.googleSignIn();
+        return;
+      }
+      await signInWithPopup(_auth, new GoogleAuthProvider());
+    } catch(e){ console.error(e); toast(e.code==='auth/unauthorized-domain'?'Добавьте домен сайта в Firebase Authentication':'Не удалось войти через Google'); }
   };
 }
+window.tochkaFirebaseSignIn = async function(idToken){
+  try {
+    var credential = GoogleAuthProvider.credential(idToken);
+    await signInWithCredential(_auth, credential);
+  } catch(e) {
+    console.error(e);
+    toast('Не удалось войти через Google');
+  }
+};
+
 function boot(){
   renderHeaderDate();
   document.getElementById('main-content').innerHTML = '<div class="card empty-state">Проверяем вход…</div>';
