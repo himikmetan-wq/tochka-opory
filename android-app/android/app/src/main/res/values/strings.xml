@@ -4,4 +4,5 @@
     <string name="title_activity_main">Точка опоры</string>
     <string name="package_name">ru.tochkaopory.app</string>
     <string name="custom_url_scheme">ru.tochkaopory.app</string>
+    <string name="quick_launch_description">Открывает «Точку опоры» по двойному нажатию кнопки увеличения громкости.</string>
 </resources>
