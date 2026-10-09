@@ -51,7 +51,6 @@ public class MainActivity extends BridgeActivity {
         }
 
         @JavascriptInterface
-        @JavascriptInterface
         public boolean hasMicrophonePermission() {
             return ContextCompat.checkSelfPermission(MainActivity.this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED;
         }
@@ -75,6 +74,7 @@ public class MainActivity extends BridgeActivity {
             });
         }
 
+        @JavascriptInterface
         public void openQuickLaunchSettings() {
             runOnUiThread(() -> {
                 Toast.makeText(MainActivity.this,
