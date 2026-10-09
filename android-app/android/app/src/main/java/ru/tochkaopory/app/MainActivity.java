@@ -1,6 +1,10 @@
 package ru.tochkaopory.app;
 
 import android.app.AlertDialog;
+import android.Manifest;
+import android.content.pm.PackageManager;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
@@ -24,6 +28,7 @@ import java.net.URL;
 
 public class MainActivity extends BridgeActivity {
     private static final int RC_SIGN_IN = 9001;
+    private static final int RC_MIC = 9002;
     private GoogleSignInClient googleSignInClient;
     private static final String VERSION_URL = "https://himikmetan-wq.github.io/tochka-opory/version.json";
 
@@ -46,6 +51,30 @@ public class MainActivity extends BridgeActivity {
         }
 
         @JavascriptInterface
+        @JavascriptInterface
+        public boolean hasMicrophonePermission() {
+            return ContextCompat.checkSelfPermission(MainActivity.this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED;
+        }
+
+        @JavascriptInterface
+        public void requestMicrophonePermission() {
+            runOnUiThread(() -> {
+                if (ContextCompat.checkSelfPermission(MainActivity.this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
+                    notifyMicPermission(true);
+                } else {
+                    ActivityCompat.requestPermissions(MainActivity.this, new String[]{Manifest.permission.RECORD_AUDIO}, RC_MIC);
+                }
+            });
+        }
+
+        @JavascriptInterface
+        public void openMicrophoneSettings() {
+            runOnUiThread(() -> {
+                Intent i = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:" + getPackageName()));
+                startActivity(i);
+            });
+        }
+
         public void openQuickLaunchSettings() {
             runOnUiThread(() -> {
                 Toast.makeText(MainActivity.this,
@@ -53,6 +82,20 @@ public class MainActivity extends BridgeActivity {
                     Toast.LENGTH_LONG).show();
                 startActivity(new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS));
             });
+        }
+    }
+
+    private void notifyMicPermission(boolean granted) {
+        String js = "window.tochkaMicrophonePermissionResult && window.tochkaMicrophonePermissionResult(" + granted + ")";
+        getBridge().getWebView().post(() -> getBridge().getWebView().evaluateJavascript(js, null));
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == RC_MIC) {
+            boolean granted = grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED;
+            notifyMicPermission(granted);
         }
     }
 
