@@ -10,6 +10,9 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.provider.Settings;
 import android.webkit.JavascriptInterface;
+import android.webkit.PermissionRequest;
+import android.webkit.WebChromeClient;
+import android.webkit.WebView;
 import android.widget.Toast;
 import com.google.android.gms.auth.api.signin.GoogleSignIn;
 import com.google.android.gms.auth.api.signin.GoogleSignInAccount;
@@ -30,12 +33,38 @@ public class MainActivity extends BridgeActivity {
     private static final int RC_SIGN_IN = 9001;
     private static final int RC_MIC = 9002;
     private GoogleSignInClient googleSignInClient;
+    private PermissionRequest pendingWebPermissionRequest;
     private static final String VERSION_URL = "https://himikmetan-wq.github.io/tochka-opory/version.json";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        getBridge().getWebView().addJavascriptInterface(new AndroidBridge(), "TochkaAndroid");
+        WebView webView = getBridge().getWebView();
+        webView.addJavascriptInterface(new AndroidBridge(), "TochkaAndroid");
+        webView.setWebChromeClient(new WebChromeClient() {
+            @Override
+            public void onPermissionRequest(final PermissionRequest request) {
+                runOnUiThread(() -> {
+                    boolean wantsAudio = false;
+                    for (String resource : request.getResources()) {
+                        if (PermissionRequest.RESOURCE_AUDIO_CAPTURE.equals(resource)) {
+                            wantsAudio = true;
+                            break;
+                        }
+                    }
+                    if (!wantsAudio) {
+                        request.deny();
+                        return;
+                    }
+                    if (ContextCompat.checkSelfPermission(MainActivity.this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
+                        request.grant(new String[]{PermissionRequest.RESOURCE_AUDIO_CAPTURE});
+                    } else {
+                        pendingWebPermissionRequest = request;
+                        ActivityCompat.requestPermissions(MainActivity.this, new String[]{Manifest.permission.RECORD_AUDIO}, RC_MIC);
+                    }
+                });
+            }
+        });
         GoogleSignInOptions gso = new GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
             .requestIdToken("463727981974-basdoluqeditgt60hk4jeq9kblvt80f2.apps.googleusercontent.com")
             .requestEmail()
@@ -95,6 +124,11 @@ public class MainActivity extends BridgeActivity {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
         if (requestCode == RC_MIC) {
             boolean granted = grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED;
+            if (pendingWebPermissionRequest != null) {
+                if (granted) pendingWebPermissionRequest.grant(new String[]{PermissionRequest.RESOURCE_AUDIO_CAPTURE});
+                else pendingWebPermissionRequest.deny();
+                pendingWebPermissionRequest = null;
+            }
             notifyMicPermission(granted);
         }
     }
