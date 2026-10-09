@@ -1500,13 +1500,17 @@ function startDictation(targetId){
     recognition.lang='ru-RU';recognition.continuous=true;recognition.interimResults=true;recognition.maxAlternatives=1;
     recognition.onresult=function(event){
       if(speechSession!==session||generation!==session.generation)return;
-      var interim='';
-      for(var i=event.resultIndex;i<event.results.length;i++){
+      // Rebuild this recognition generation from the full current hypothesis.
+      // Android repeatedly revises the same utterance; treating each revision as
+      // a new fragment is what produced "раз раз ... проверка ..." ladders.
+      Object.keys(session.finalParts).forEach(function(k){if(Math.floor(Number(k)/100000)===generation)delete session.finalParts[k];});
+      var interimParts=[];
+      for(var i=0;i<event.results.length;i++){
         var part=cleanSpeechText(event.results[i][0].transcript);if(!part)continue;
         if(event.results[i].isFinal)session.finalParts[generation*100000+i]=part;
-        else interim=part;
+        else interimParts.push(part);
       }
-      session.interim=interim;session.refresh();
+      session.interim=cleanSpeechText(interimParts.join(' '));session.refresh();
     };
     recognition.onerror=function(event){
       if(speechSession!==session)return;
@@ -1551,11 +1555,13 @@ var CHAMPION_DEFAULT_ITEMS = [
 var CHAMPION_LOG_DAYS_BACK = 400;
 
 function computeChampionStreak(items, log){
-  var itemIds = items.map(function(it){ return it.id; });
-  if(!itemIds.length) return { streak:0, todayDone:false };
+  var currentIds = items.map(function(it){ return it.id; });
+  if(!currentIds.length) return { streak:0, todayDone:false };
   function dayComplete(key){
-    var rec = log[key];
-    return !!rec && itemIds.every(function(id){ return rec.indexOf(id)!==-1; });
+    var rec=log[key];if(!rec)return false;
+    var doneIds=Array.isArray(rec)?rec:(rec.doneIds||[]);
+    var requiredIds=(!Array.isArray(rec)&&(rec.requiredIds||[]).length)?rec.requiredIds:currentIds;
+    return requiredIds.length>0&&requiredIds.every(function(id){return doneIds.indexOf(id)!==-1;});
   }
   var today = todayDate();
   var tKey = fmtKey(today);
@@ -1587,7 +1593,7 @@ async function loadChampion(){
   if(logSnap){
     logSnap.docs.forEach(function(d){
       var data = d.data();
-      log[data.date] = data.doneIds || [];
+      log[data.date] = {doneIds:data.doneIds||[], requiredIds:data.requiredIds||[]};
     });
   }
 
@@ -1612,7 +1618,7 @@ async function saveChampionToggleWithSuccess(id, tKey, itemIds){
     if(idx!==-1) current.splice(idx,1); else current.push(id);
     var wasAllDone = itemIds.length>0 && itemIds.every(function(x){ return before.indexOf(x)!==-1; });
     var isAllDone = itemIds.length>0 && itemIds.every(function(x){ return current.indexOf(x)!==-1; });
-    tx.set(logRef, { date:tKey, doneIds:current, updatedAt:nowISO() });
+    tx.set(logRef, { date:tKey, doneIds:current, requiredIds:itemIds.slice(), updatedAt:nowISO() });
     if(isAllDone !== wasAllDone){
       var data = journalSnap.exists() ? journalSnap.data() : {};
       var entries = (data.entries||[]).filter(function(e){ return e.sourceChampion!==tKey; });
@@ -1623,7 +1629,7 @@ async function saveChampionToggleWithSuccess(id, tKey, itemIds){
   });
 }
 function applyChampionLogForToday(c, tKey, doneIds){
-  c.log[tKey] = doneIds;
+  c.log[tKey] = {doneIds:doneIds, requiredIds:c.items.map(function(it){return it.id;})};
   var streakInfo = computeChampionStreak(c.items, c.log);
   c.streak = streakInfo.streak;
   c.todayDone = streakInfo.todayDone;
@@ -1637,7 +1643,8 @@ async function toggleChampionItem(id){
 
   // Optimistic update so the tap feels instant even on a slow connection,
   // and so a second tap can't race the first one's save.
-  var prevLog = (c.log[tKey] || []).slice();
+  var todayRec=c.log[tKey];
+  var prevLog=(Array.isArray(todayRec)?todayRec:((todayRec&&todayRec.doneIds)||[])).slice();
   var optimistic = prevLog.slice();
   var oi = optimistic.indexOf(id);
   if(oi!==-1) optimistic.splice(oi,1); else optimistic.push(id);
@@ -1681,8 +1688,10 @@ function updateChampionDraftText(id, text){
 async function saveChampionItems(){
   var items = (state.champion.draftItems||[]).map(function(it){ return { id:it.id, text:(it.text||'').trim() }; }).filter(function(it){ return it.text; });
   if(!items.length){ toast('Добавьте хотя бы одно дело'); return; }
+  var oldIds=state.champion.items.map(function(it){return it.id;});
   var ok = await safe(refChampionDoc().set({ items:items, updatedAt:nowISO() }), 'Не удалось сохранить список дел');
   if(ok===null) return;
+  Object.keys(state.champion.log).forEach(function(key){var rec=state.champion.log[key];if(Array.isArray(rec))state.champion.log[key]={doneIds:rec.slice(),requiredIds:oldIds.slice()};else if(!(rec.requiredIds||[]).length)rec.requiredIds=oldIds.slice();});
   state.champion.items = items;
   state.champion.editing = false;
   state.champion.draftItems = null;
@@ -1714,7 +1723,8 @@ function renderChampionCard(){
   }
   var items = c.editing ? (c.draftItems||[]) : c.items;
   var tKey = todayKey();
-  var todayIds = c.log[tKey] || [];
+  var todayRec=c.log[tKey];
+  var todayIds=Array.isArray(todayRec)?todayRec:((todayRec&&todayRec.doneIds)||[]);
   var html = '<div class="card champion-card">';
   html += '<div class="champion-head"><div class="champion-title">Блок чемпиона</div>'
     + (!c.editing ? '<button type="button" class="champion-pencil" data-action="champion-edit-start" aria-label="Редактировать">✎</button>' : '')
