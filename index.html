@@ -1433,6 +1433,16 @@ async function deleteNote(id){
   if(ok!==null){state.notes.items=state.notes.items.filter(function(n){return n.id!==id;});renderMain();}
 }
 var speechSession=null;
+window.tochkaMicrophonePermissionResult=function(granted){
+  var target=window.pendingDictationTarget;window.pendingDictationTarget=null;
+  if(granted&&target){setTimeout(function(){startDictation(target);},120);return;}
+  if(!granted){
+    toast('Микрофон запрещён. Откройте настройки приложения и разрешите «Микрофон».');
+    if(window.TochkaAndroid&&typeof window.TochkaAndroid.openMicrophoneSettings==='function'){
+      setTimeout(function(){if(confirm('Открыть настройки «Точки опоры» и разрешить микрофон?'))window.TochkaAndroid.openMicrophoneSettings();},250);
+    }
+  }
+};
 var noteSaveLock=false;
 function cleanSpeechText(s){return String(s||'').replace(/\s+/g,' ').trim();}
 function speechKey(s){return cleanSpeechText(s).toLocaleLowerCase('ru-RU').replace(/[.,!?;:—–-]/g,'');}
@@ -1465,6 +1475,11 @@ function stopDictation(reason){
 }
 function startDictation(targetId){
   if(speechSession){stopDictation('button');return;}
+  if(window.TochkaAndroid&&typeof window.TochkaAndroid.hasMicrophonePermission==='function'&&!window.TochkaAndroid.hasMicrophonePermission()){
+    window.pendingDictationTarget=targetId;
+    window.TochkaAndroid.requestMicrophonePermission();
+    return;
+  }
   var Speech=window.SpeechRecognition||window.webkitSpeechRecognition;
   if(!Speech){toast('Распознавание голоса недоступно в этом браузере. Можно написать заметку вручную.');return;}
   var field=targetId==='new'?document.getElementById('new-note-text'):document.getElementById('note-text-'+targetId);
