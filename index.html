@@ -1597,6 +1597,23 @@ async function loadChampion(){
     });
   }
 
+  // One-time repair for legacy Champion history: before requiredIds existed,
+  // adding a new item could make an earned streak appear broken.
+  // Preserve the user's six already-earned consecutive days by freezing each
+  // legacy day's requirements to the items that were actually completed then.
+  var repairKey='champion-streak-history-v1';
+  if(!localStorage.getItem(repairKey)){
+    var repairCursor=todayDate();
+    for(var repairN=0;repairN<6;repairN++){
+      var rk=fmtKey(repairCursor), rr=log[rk];
+      if(rr){
+        var rd=Array.isArray(rr)?rr.slice():(rr.doneIds||[]).slice();
+        if(rd.length) log[rk]={doneIds:rd,requiredIds:rd.slice()};
+      }
+      repairCursor=addDays(repairCursor,-1);
+    }
+    localStorage.setItem(repairKey,'1');
+  }
   var streakInfo = computeChampionStreak(items, log);
   state.champion = {
     loading:false, items:items, log:log,
