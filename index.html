@@ -904,23 +904,37 @@ async function switchTab(tab){
   stopCoachRotation();
   renderTabbar();
   renderMain();
-  if(tab==='summary'){ startCoachRotation(); return Promise.all([loadSummary(),loadChampion(),loadNotes()]); }
-  if(tab==='journal'){ loadJournalMonth(); loadJournalStats(); }
-  if(tab==='tasks') loadTasks();
-  if(tab==='tracker') loadTracker();
-  if(tab==='finance') loadFinance();
-  if(tab==='budget') loadBudget();
+  startupReadError=null;
+  try{
+    if(tab==='summary'){startCoachRotation();return await Promise.all([loadSummary(),loadChampion(),loadNotes()]);}
+    if(tab==='journal')return await Promise.all([loadJournalMonth(),loadJournalStats()]);
+    if(tab==='tasks')return await loadTasks();
+    if(tab==='tracker')return await loadTracker();
+    if(tab==='finance')return await loadFinance();
+    if(tab==='budget')return await loadBudget();
+  }catch(e){
+    console.error('Section load failed',e);
+    document.getElementById('main-content').innerHTML=sectionErrorCard('Загрузка раздела',e);
+  }
 }
 
+function sectionErrorCard(title,error){
+  return '<div class="card empty-state"><strong>'+esc(title)+'</strong><p>Этот блок пока не удалось открыть. Остальные разделы доступны.</p><p class="hint">'+esc(error.code||error.name||'Ошибка')+': '+esc(error.message||'Нет ответа от облака')+'</p><button class="btn btn-ghost btn-sm" data-action="retry-section">Повторить загрузку</button></div>';
+}
+function renderSection(title,fn){
+  try{return fn();}catch(e){console.error('Render failed: '+title,e);return sectionErrorCard(title,e);}
+}
 function renderMain(){
-  var el = document.getElementById('main-content');
-  if(!dbReady){ el.innerHTML = renderDbUnavailable(); return; }
-  if(state.tab==='summary'){ el.innerHTML = renderSummary(); }
-  else if(state.tab==='journal') el.innerHTML = renderJournal();
-  else if(state.tab==='tasks'){ el.innerHTML = renderTasks(); initTaskDrag(); }
-  else if(state.tab==='tracker'){ el.innerHTML = renderTracker(); initTrackerSubtaskDrag(); }
-  else if(state.tab==='finance') el.innerHTML = renderFinance();
-  else if(state.tab==='budget'){ el.innerHTML = renderBudget(); initBudgetDrag(); }
+  var el=document.getElementById('main-content');
+  if(!dbReady){el.innerHTML=renderDbUnavailable();return;}
+  try{
+    if(state.tab==='summary')el.innerHTML=renderSummary();
+    else if(state.tab==='journal')el.innerHTML=renderJournal();
+    else if(state.tab==='tasks'){el.innerHTML=renderTasks();initTaskDrag();}
+    else if(state.tab==='tracker'){el.innerHTML=renderTracker();initTrackerSubtaskDrag();}
+    else if(state.tab==='finance')el.innerHTML=renderFinance();
+    else if(state.tab==='budget'){el.innerHTML=renderBudget();initBudgetDrag();}
+  }catch(e){console.error('Render failed',e);el.innerHTML=sectionErrorCard('Раздел',e);}
 }
 
 function renderDbUnavailable(){
@@ -2081,8 +2095,8 @@ async function loadSummary(){
 
 function renderSummary(){
   var s = state.summary;
-  var html = renderCoachCard();
-  html += renderChampionCard();
+  var html = renderSection('Наставник',renderCoachCard);
+  html += renderSection('Блок чемпиона',renderChampionCard);
   if(s.loading){
     html += skeleton(3);
     html += skeleton(4);
@@ -2090,7 +2104,7 @@ function renderSummary(){
     return html;
   }
 
-  html += renderNotes();
+  html += renderSection('Заметки',renderNotes);
 
   if(s.budgetDoc){
     var planned = budgetPlannedTotal(s.budgetDoc);
@@ -2154,7 +2168,8 @@ document.getElementById('main-content').addEventListener('click', function(e){
   if(!btn) return;
   var a = btn.dataset.action;
 
-  if(a==='coach-prev'){ stepCoach(-1,false); }
+  if(a==='retry-section'){switchTab(state.tab);}
+  else if(a==='coach-prev'){ stepCoach(-1,false); }
   else if(a==='coach-next'){ stepCoach(1,false); }
   else if(a==='export-data'){ exportData(); }
   else if(a==='abandon-task-start'){ state.tasks.abandoningId = btn.dataset.id; renderMain(); }
@@ -2399,7 +2414,10 @@ function boot(){
     renderTabbar();
     try{
       await switchTab('summary');
-      if(startupReadError)throw startupReadError;
+      if(startupReadError){
+        var main=document.getElementById('main-content');
+        main.innerHTML=sectionErrorCard('Облачные данные',startupReadError)+main.innerHTML;
+      }
     }catch(e){
       console.error('Startup failed',e);
       var errorCode=e.code||'unknown';
