@@ -125,15 +125,19 @@ input,textarea{font-family:inherit;font-size:15px;}
 .today{font-size:12.5px;color:var(--text-muted);text-align:right;text-transform:capitalize;}
 
 @media (max-width:600px){
-  .app-header{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:5px 8px;padding:8px 2px;}
-  .brand{min-width:0;gap:5px;}
-  .brand svg{width:17px;height:17px;}
-  .brand span{font-size:11px;white-space:nowrap;}
-  .account-bar{display:contents;}
-  .today{font-size:10px;white-space:nowrap;}
-  #account-control{grid-column:1 / -1;flex-wrap:nowrap;gap:8px;font-size:11px;min-width:0;}
-  #account-control > span{margin-right:auto;max-width:none;min-width:0;}
-  .account-bar button{padding:3px 6px;font-size:11px;}
+  .app-header{display:flex;flex-wrap:nowrap;gap:5px;padding:8px 2px;}
+  .brand{min-width:0;gap:4px;flex-shrink:1;}
+  .brand svg{width:16px;height:16px;}
+  .brand span{font-size:10px;white-space:nowrap;}
+  .account-bar{display:flex;flex-wrap:nowrap;align-items:center;gap:5px;margin-left:auto;min-width:0;}
+  .today{font-size:9.5px;white-space:nowrap;}
+  #account-control{flex-wrap:nowrap;gap:5px;font-size:10px;min-width:0;}
+  #account-control > span{display:none;}
+  .account-bar button{padding:3px 5px;font-size:10px;}
+  .theme-slider{width:36px;height:22px;}
+  .theme-slider::before{width:16px;height:16px;}
+  .theme-switch input:checked + .theme-slider::before{transform:translateX(14px);}
+  .quick-launch-btn,.projects-menu-btn{width:26px;height:26px;}
   .app-main{padding:12px 2px 100px;}
 }
 .app-main{min-height:60vh;}
@@ -478,7 +482,7 @@ a{color:var(--accent);}
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M15.5 8.5 13 13l-4.5 2.5L11 11l4.5-2.5Z"/></svg>
       <span>Точка опоры</span>
     </div>
-    <div class="account-bar"><div class="today" id="header-date"></div><div id="account-control"></div></div>
+    <div class="account-bar"><div class="today" id="header-date"></div><div class="today" id="header-weather" aria-label="Температура в Красноярске"></div><div id="account-control"></div></div>
   </header>
 
   <main class="app-main" id="main-content"></main>
@@ -882,8 +886,22 @@ async function saveTheme(theme){
 /* ---------- shell render ---------- */
 function renderHeaderDate(){
   var d = new Date();
-  var wd = WEEKDAYS_FULL[(d.getDay()+6)%7];
-  document.getElementById('header-date').textContent = wd+', '+d.getDate()+' '+MONTHS_GEN[d.getMonth()];
+  var wd = WEEKDAYS[(d.getDay()+6)%7];
+  var month=MONTHS_GEN[d.getMonth()];
+  month=month.charAt(0).toUpperCase()+month.slice(1);
+  document.getElementById('header-date').textContent = wd+', '+d.getDate()+' '+month;
+}
+async function loadHeaderWeather(){
+  var el=document.getElementById('header-weather'); if(!el)return;
+  try{
+    var res=await fetch('https://api.open-meteo.com/v1/forecast?latitude=56.0153&longitude=92.8932&current=temperature_2m&timezone=Asia%2FKrasnoyarsk',{cache:'no-store'});
+    if(!res.ok)throw new Error('weather '+res.status);
+    var data=await res.json();
+    var t=data&&data.current&&Number(data.current.temperature_2m);
+    if(!Number.isFinite(t))throw new Error('weather data');
+    el.textContent=(t>0?'+':'')+Math.round(t)+'°';
+    el.title='Красноярск: '+el.textContent;
+  }catch(e){ console.warn('Weather unavailable',e); el.textContent=''; }
 }
 function renderTabbar(){
   var btns = document.querySelectorAll('.tab-btn');
@@ -2395,6 +2413,8 @@ window.tochkaFirebaseSignIn = async function(idToken){
 
 function boot(){
   renderHeaderDate();
+  loadHeaderWeather();
+  setInterval(loadHeaderWeather, 15*60*1000);
   document.getElementById('main-content').innerHTML = '<div class="card empty-state">Проверяем вход…</div>';
   onAuthStateChanged(_auth, async function(user){
     activeUser = user;
