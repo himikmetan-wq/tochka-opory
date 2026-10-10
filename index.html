@@ -504,7 +504,7 @@ a{color:var(--accent);}
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-app.js";
 import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithCredential, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-auth.js";
 import {
-  getFirestore, doc, getDoc, setDoc, updateDoc, deleteDoc,
+  initializeFirestore, doc, getDoc, setDoc, updateDoc, deleteDoc,
   collection, addDoc, getDocs, query, where, orderBy, limit, runTransaction
 } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore.js";
 
@@ -633,7 +633,7 @@ var BACKUP_COLLECTIONS = ['journal','tasks','finance','budget','champion','champ
 var LEGACY_OWNER_EMAIL = 'himikmetan@gmail.com';
 var LEGACY_PREFIX = 'app_1828f9714064928f0aab3d8b';
 var _fsApp = initializeApp(FIREBASE_CONFIG);
-var _fsDb = getFirestore(_fsApp);
+var _fsDb = initializeFirestore(_fsApp, {experimentalForceLongPolling:true, useFetchStreams:false});
 var _auth = getAuth(_fsApp);
 var activeUser = null;
 
@@ -678,7 +678,7 @@ function localDoc(path){
   return {
     id:id, path:path,
     get: function(){
-      return boundedRead(getDoc(ref)).then(function(snap){
+      return boundedRead(getDoc(ref),15000,path).then(function(snap){
         return { id:id, exists: snap.exists(), data:function(){ return snap.exists() ? snap.data() : undefined; } };
       });
     },
@@ -699,7 +699,7 @@ function localCollection(coll){
       if(order) constraints.push(orderBy(order[0], order[1]));
       if(lim) constraints.push(limit(lim));
       var q = constraints.length ? query.apply(null, [qc].concat(constraints)) : qc;
-      return boundedRead(getDocs(q)).then(function(snap){
+      return boundedRead(getDocs(q),15000,coll).then(function(snap){
         var docs = snap.docs.map(function(d){ return { id:d.id, exists:true, data:function(){ return d.data(); } }; });
         return { docs:docs, size:docs.length, empty:docs.length===0 };
       });
@@ -833,16 +833,16 @@ function refChampionLogDoc(key){ return db.doc('championLog/'+key); }
 function refChampionLogColl(){ return db.collection('championLog'); }
 
 // Bound reads only: writes must keep their actual Firebase acknowledgement.
-function boundedRead(promise, timeoutMs){
+function boundedRead(promise, timeoutMs, label){
   return new Promise(function(resolve,reject){
-    var timer=setTimeout(function(){var error=new Error('Firebase read timed out');error.code='unavailable';reject(error);},timeoutMs||10000);
-    promise.then(function(value){clearTimeout(timer);resolve(value);},function(error){clearTimeout(timer);reject(error);});
+    var timer=setTimeout(function(){var error=new Error('Firebase read timed out');error.code='deadline-exceeded';error.readPath=label||'';reject(error);},timeoutMs||10000);
+    promise.then(function(value){clearTimeout(timer);resolve(value);},function(error){clearTimeout(timer);error.readPath=label||error.readPath||'';reject(error);});
   });
 }
 var startupReadError=null;
 async function safe(promise, failMsg){
   try{ return await promise; }
-  catch(e){ console.error(e); startupReadError=e; if(failMsg) toast(failMsg); return null; }
+  catch(e){ console.error(e); if(!startupReadError || e.code==='permission-denied')startupReadError=e; if(failMsg) toast(failMsg); return null; }
 }
 function applyTheme(theme){
   state.theme=theme==='dark'?'dark':'light';
@@ -2404,7 +2404,9 @@ function boot(){
       if(startupReadError)throw startupReadError;
     }catch(e){
       console.error('Startup failed',e);
-      document.getElementById('main-content').innerHTML='<div class="card empty-state">Не удалось загрузить данные из облака. Попробуйте ещё раз.<br><button class="btn btn-primary" id="retry-startup">Повторить загрузку</button></div>';
+      var errorCode=e.code||'unknown';
+      var errorHint=errorCode==='permission-denied'?'Облако отказало в доступе. Нужно проверить правила Firebase.':(errorCode==='deadline-exceeded'||errorCode==='unavailable'?'Нет ответа от облака. Попробуйте другую сеть или временно отключите VPN.':'Ошибка при запуске приложения.');
+      document.getElementById('main-content').innerHTML='<div class="card empty-state">'+esc(errorHint)+'<p class="hint">Код: '+esc(errorCode)+'<br>Раздел: '+esc(e.readPath||'запуск')+'</p><button class="btn btn-primary" id="retry-startup">Повторить загрузку</button></div>';
       document.getElementById('retry-startup').onclick=function(){location.reload();};
     }finally{ window.finishBootSplash(); }
   }, function(e){ console.error(e); document.getElementById('main-content').textContent='Ошибка входа. Обновите страницу.'; window.finishBootSplash(); });
