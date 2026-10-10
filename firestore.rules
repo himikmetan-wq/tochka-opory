@@ -7,7 +7,7 @@ service cloud.firestore {
     match /users/{userId}/{collectionId}/{documentId} {
       allow read, write: if request.auth != null
         && request.auth.uid == userId
-        && collectionId in ['journal', 'tasks', 'finance', 'budget'];
+        && collectionId in ['journal', 'tasks', 'finance', 'budget', 'champion', 'championLog'];
     }
     // Owner-only, read-only access for automatic one-time migration.
     match /app_1828f9714064928f0aab3d8b/data/{collectionId}/{documentId} {
