@@ -384,10 +384,10 @@ a{color:var(--accent);}
 .boot-status::after{content:'';position:absolute;top:0;bottom:0;width:32%;background:#d9a75c;border-radius:2px;animation:boot-loader 1.5s ease-in-out infinite}
 .boot-sr-only{position:absolute;width:1px;height:1px;padding:0;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap}
 .boot-reveal{position:absolute;z-index:5;left:50%;top:50%;width:12px;height:12px;border-radius:50%;background:#0d3a31;transform:translate(-50%,-50%) scale(0);pointer-events:none}
-.boot-splash.launching .boot-focus{animation:boot-settle .72s ease forwards}
+.boot-splash.launching .boot-focus{animation:boot-settle .24s ease forwards}
 .boot-splash.launching .boot-status{opacity:0;transition:opacity .18s}
-.boot-splash.launching .boot-reveal{animation:boot-open .72s cubic-bezier(.5,0,.18,1) forwards}
-.boot-splash.launching{animation:boot-clear .72s .18s ease forwards}
+.boot-splash.launching .boot-reveal{animation:boot-open .24s cubic-bezier(.5,0,.18,1) forwards}
+.boot-splash.launching{animation:boot-clear .24s ease forwards}
 .boot-splash.done{opacity:0;pointer-events:none}
 @keyframes boot-lock{0%{transform:rotate(-115deg)}34%{transform:rotate(76deg)}62%{transform:rotate(-18deg)}82%{transform:rotate(8deg)}100%{transform:rotate(0deg)}}
 @keyframes boot-rise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
@@ -417,6 +417,10 @@ a{color:var(--accent);}
 @keyframes tabInRight{from{transform:translate3d(-24%,0,0);opacity:.72}to{transform:translate3d(0,0,0);opacity:1}}
 @media (prefers-reduced-motion:reduce){#main-content[class*="tab-slide-"]{animation:none!important}}
 </style>
+<link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+<link rel="preconnect" href="https://firestore.googleapis.com" crossorigin>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;600;700&family=Golos+Text:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap">
 </head>
 <body>
@@ -436,7 +440,7 @@ a{color:var(--accent);}
 </div>
 <script>
 (function(){
-  var timer, readyAt=Date.now()+2250, finished=false;
+  var timer, readyAt=Date.now()+450, finished=false;
   window.finishBootSplash=function(){
     if(finished)return;
     finished=true;
@@ -446,7 +450,7 @@ a{color:var(--accent);}
       var el=document.getElementById('boot-splash');
       if(!el)return;
       el.classList.add('launching');
-      setTimeout(function(){el.classList.add('done');setTimeout(function(){el.remove();},40);},900);
+      setTimeout(function(){el.classList.add('done');setTimeout(function(){el.remove();},40);},250);
     },wait);
   };
   window.setBootStatus=function(text){var el=document.getElementById('boot-status-text');if(el)el.textContent=text;};
@@ -2413,7 +2417,10 @@ function boot(){
     control.append(name, themeLabel, quickLaunch, logout);
     renderTabbar();
     try{
-      await switchTab('summary');
+      var initialLoad=switchTab('summary');
+      // The shell is already rendered; cloud reads must not hold the splash.
+      window.finishBootSplash();
+      await initialLoad;
       if(startupReadError){
         var main=document.getElementById('main-content');
         main.innerHTML=sectionErrorCard('Облачные данные',startupReadError)+main.innerHTML;
