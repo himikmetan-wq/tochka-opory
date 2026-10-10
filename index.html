@@ -2361,23 +2361,9 @@ function boot(){
     applyTheme('light');
     if(!user){ showLogin(); window.finishBootSplash(); return; }
     window.setBootStatus('Собираем ваши дела и победы…');
-    document.getElementById('main-content').innerHTML = '<div class="card empty-state">Проверяем и переносим записи…</div>';
-    try { await migrateLegacyData(user); }
-    catch(e){
-      console.error(e);
-      var offline = isOfflineError(e);
-      var msg = offline ? 'Нет связи с сервером. Проверьте интернет-соединение и попробуйте ещё раз.' : 'Не удалось перенести прежние записи. Проверьте правила Firebase и попробуйте ещё раз.';
-      var box = document.getElementById('main-content');
-      box.innerHTML = '';
-      var card = document.createElement('div'); card.className = 'card empty-state';
-      var p = document.createElement('div'); p.textContent = msg; p.style.marginBottom='12px';
-      var retryBtn = document.createElement('button'); retryBtn.className='btn btn-primary btn-sm'; retryBtn.textContent='Повторить';
-      retryBtn.onclick = function(){ boot(); };
-      card.append(p, retryBtn);
-      box.appendChild(card);
-      window.finishBootSplash();
-      return;
-    }
+    document.getElementById('main-content').innerHTML = '<div class="card empty-state">Загружаем данные…</div>';
+    // Legacy migration was a one-time transition for the original account.
+    // Never block normal app startup on that historical migration path.
     if(_auth.currentUser?.uid !== user.uid) return;
     await loadTheme(user);
     var control = document.getElementById('account-control');
