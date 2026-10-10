@@ -900,7 +900,6 @@ function switchTabAnimated(tab, direction){
   },115);
 }
 async function switchTab(tab){
-  if(speechSession)stopDictation();
   state.tab = tab;
   stopCoachRotation();
   renderTabbar();
@@ -2293,8 +2292,7 @@ document.getElementById('main-content').addEventListener('submit', function(e){
     if(renamed && pt){var subs=clone(pt.subtasks||[]),sub=subs.find(function(s){return s.id===form.dataset.subid;});if(sub){sub.text=renamed;changeTrackerSubtasks(pt.id,subs).then(function(){state.tracker.editingSubtask=null;renderMain();});}}
   }
   else if(a==='add-note'){
-    if(speechSession)stopDictation();
-    else {var noteText=(fd.get('text')||'').trim();if(noteText)addNote(noteText);}
+    var noteText=(fd.get('text')||'').trim();if(noteText)addNote(noteText);
   }
   else if(a==='edit-note'){
     var editedNote=(fd.get('text')||'').trim();if(editedNote)editNote(form.dataset.id,editedNote);
@@ -2406,7 +2404,7 @@ function boot(){
       console.error('Startup failed',e);
       var errorCode=e.code||'unknown';
       var errorHint=errorCode==='permission-denied'?'Облако отказало в доступе. Нужно проверить правила Firebase.':(errorCode==='deadline-exceeded'||errorCode==='unavailable'?'Нет ответа от облака. Попробуйте другую сеть или временно отключите VPN.':'Ошибка при запуске приложения.');
-      document.getElementById('main-content').innerHTML='<div class="card empty-state">'+esc(errorHint)+'<p class="hint">Код: '+esc(errorCode)+'<br>Раздел: '+esc(e.readPath||'запуск')+'</p><button class="btn btn-primary" id="retry-startup">Повторить загрузку</button></div>';
+      document.getElementById('main-content').innerHTML='<div class="card empty-state">'+esc(errorHint)+'<p class="hint">Код: '+esc(errorCode)+'<br>'+esc(e.message||'')+'<br>Раздел: '+esc(e.readPath||'запуск')+'</p><button class="btn btn-primary" id="retry-startup">Повторить загрузку</button></div>';
       document.getElementById('retry-startup').onclick=function(){location.reload();};
     }finally{ window.finishBootSplash(); }
   }, function(e){ console.error(e); document.getElementById('main-content').textContent='Ошибка входа. Обновите страницу.'; window.finishBootSplash(); });
