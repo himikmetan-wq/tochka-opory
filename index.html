@@ -21,6 +21,16 @@
 #account-control{display:flex;flex-wrap:wrap;align-items:center;justify-content:flex-end;gap:8px 10px;max-width:100%;}
  .header-theme-switch{gap:0;flex:none;}
 .quick-launch-btn{width:28px;height:28px;border-radius:50%!important;padding:0!important;display:inline-flex;align-items:center;justify-content:center;font-weight:700;font-size:12px!important;line-height:1;}
+.projects-menu-wrap{position:relative;display:inline-flex;flex:none;}
+.projects-menu-btn{width:28px;height:28px;border-radius:50%!important;padding:0!important;display:inline-flex!important;align-items:center;justify-content:center;}
+.projects-menu-btn svg{width:14px;height:14px;}
+.projects-menu{position:absolute;right:0;top:36px;width:190px;padding:6px;background:var(--surface);border:1px solid var(--border);border-radius:12px;box-shadow:var(--shadow);z-index:40;display:none;}
+.projects-menu.open{display:flex;flex-direction:column;gap:3px;}
+.projects-menu a{display:flex;align-items:center;gap:9px;padding:8px 9px;border-radius:8px;color:var(--text);text-decoration:none;font-size:12px;white-space:nowrap;}
+.projects-menu a:hover,.projects-menu a:focus-visible{background:var(--surface-2);outline:none;}
+.project-logo{width:25px;height:25px;border-radius:7px;display:inline-flex;align-items:center;justify-content:center;flex:none;font-size:11px;font-weight:800;border:1px solid var(--border);background:var(--surface-2);}
+.project-logo.calendar{color:#9C6A16}.project-logo.posts{color:#1F8770}.project-logo.games{color:#7B61A8}.project-logo.anchor{color:var(--accent-strong);}
+@media(max-width:600px){.projects-menu{right:-38px;top:34px;width:184px;}}
 .login-card{max-width:420px;margin:12vh auto 0;padding:28px;text-align:center;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius)}
 .login-card p{color:var(--text-muted);line-height:1.5}
 .login-card button{margin-top:12px;padding:12px 18px;border:0;border-radius:10px;background:var(--accent);color:white;font:inherit;cursor:pointer}
@@ -2412,9 +2422,21 @@ function boot(){
     themeInput.onchange = function(){ saveTheme(themeInput.checked ? 'dark' : 'light'); };
     var logout = document.createElement('button'); logout.textContent = 'Выйти';
     logout.onclick = function(){ signOut(_auth).catch(function(e){ console.error(e); toast('Не удалось выйти'); }); };
+    var projectsWrap=document.createElement('div'); projectsWrap.className='projects-menu-wrap';
+    var projectsBtn=document.createElement('button'); projectsBtn.className='projects-menu-btn'; projectsBtn.type='button'; projectsBtn.title='Мои проекты'; projectsBtn.setAttribute('aria-label','Мои проекты'); projectsBtn.setAttribute('aria-expanded','false');
+    projectsBtn.innerHTML='<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="2"/><rect x="14" y="3" width="7" height="7" rx="2"/><rect x="3" y="14" width="7" height="7" rx="2"/><rect x="14" y="14" width="7" height="7" rx="2"/></svg>';
+    var projectsMenu=document.createElement('div'); projectsMenu.className='projects-menu';
+    projectsMenu.innerHTML='<a href="https://himikmetan-wq.github.io/voodoo-calendar/" target="_blank" rel="noopener"><span class="project-logo calendar">V</span><span>Вуду расписание</span></a>'
+      +'<a href="https://himikmetan-wq.github.io/Content/" target="_blank" rel="noopener"><span class="project-logo posts">P</span><span>Вуду посты</span></a>'
+      +'<a href="https://himikmetan-wq.github.io/void-merge/index.html" target="_blank" rel="noopener"><span class="project-logo games">◈</span><span>Игроцех</span></a>'
+      +'<a href="https://himikmetan-wq.github.io/tochka-opory/" target="_blank" rel="noopener"><span class="project-logo anchor">⌖</span><span>Точка опоры</span></a>';
+    projectsBtn.onclick=function(e){e.stopPropagation();var open=projectsMenu.classList.toggle('open');projectsBtn.setAttribute('aria-expanded',open?'true':'false');};
+    projectsMenu.onclick=function(e){e.stopPropagation();};
+    document.addEventListener('click',function(){projectsMenu.classList.remove('open');projectsBtn.setAttribute('aria-expanded','false');},{once:false});
+    projectsWrap.append(projectsBtn,projectsMenu);
     var quickLaunch=document.createElement('button'); quickLaunch.className='quick-launch-btn'; quickLaunch.textContent='B'; quickLaunch.title='Настроить быстрый запуск ↑↑'; quickLaunch.setAttribute('aria-label','Настроить быстрый запуск');
     quickLaunch.onclick=function(){ if(window.TochkaAndroid&&typeof window.TochkaAndroid.openQuickLaunchSettings==='function') window.TochkaAndroid.openQuickLaunchSettings(); else toast('Быстрый запуск доступен в Android-приложении'); };
-    control.append(name, themeLabel, quickLaunch, logout);
+    control.append(name, themeLabel, projectsWrap, quickLaunch, logout);
     renderTabbar();
     try{
       var initialLoad=switchTab('summary');
