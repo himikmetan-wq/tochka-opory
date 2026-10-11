@@ -131,6 +131,8 @@ input,textarea{font-family:inherit;font-size:15px;}
   .brand span{font-size:10px;white-space:nowrap;}
   .account-bar{display:flex;flex-wrap:nowrap;align-items:center;gap:5px;margin-left:auto;min-width:0;}
   .today{font-size:9.5px;white-space:nowrap;}
+  #header-date{flex:none;}
+  #header-weather{flex:none;min-width:24px;text-align:center;font-weight:600;color:var(--accent-strong);}
   #account-control{flex-wrap:nowrap;gap:5px;font-size:10px;min-width:0;}
   #account-control > span{display:none;}
   .account-bar button{padding:3px 5px;font-size:10px;}
@@ -1554,24 +1556,31 @@ async function loadChampion(){
     });
   }
 
-  // One-time repair for legacy Champion history: before requiredIds existed,
-  // adding a new item could make an earned streak appear broken.
-  // Preserve the user's six already-earned consecutive days by freezing each
-  // legacy day's requirements to the items that were actually completed then.
-  var repairKey='champion-streak-history-v1';
+  // One-time persisted repair for the earned Champion streak.
+  // Yesterday closed a 7-day run; today's day is intentionally NOT repaired,
+  // so it becomes day 8 only after today's whole block is completed.
+  var repairKey='champion-streak-history-v2-seven-days';
   var repairDone=false;
   try{repairDone=!!localStorage.getItem(repairKey);}catch(e){console.warn(e);}
   if(!repairDone){
-    var repairCursor=todayDate();
-    for(var repairN=0;repairN<6;repairN++){
-      var rk=fmtKey(repairCursor), rr=log[rk];
-      if(rr){
-        var rd=Array.isArray(rr)?rr.slice():(rr.doneIds||[]).slice();
-        if(rd.length) log[rk]={doneIds:rd,requiredIds:rd.slice()};
+    var repairedAll=true;
+    for(var repairN=1;repairN<=7;repairN++){
+      var rk=fmtKey(addDays(todayDate(),-repairN)), rr=log[rk];
+      if(!rr) { repairedAll=false; continue; }
+      var rd=Array.isArray(rr)?rr.slice():(rr.doneIds||[]).slice();
+      if(!rd.length) { repairedAll=false; continue; }
+      var repaired={doneIds:rd,requiredIds:rd.slice()};
+      log[rk]=repaired;
+      try{
+        await setDoc(_fsDocRef('championLog',rk),{date:rk,doneIds:rd,requiredIds:rd.slice(),updatedAt:nowISO()},{merge:true});
+      }catch(e){
+        repairedAll=false;
+        console.warn('Champion history repair failed for '+rk,e);
       }
-      repairCursor=addDays(repairCursor,-1);
     }
-    try{localStorage.setItem(repairKey,'1');}catch(e){console.warn(e);}
+    if(repairedAll){
+      try{localStorage.setItem(repairKey,'1');}catch(e){console.warn(e);}
+    }
   }
   var streakInfo = computeChampionStreak(items, log);
   state.champion = {
