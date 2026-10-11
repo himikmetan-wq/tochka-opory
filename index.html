@@ -893,17 +893,46 @@ function renderHeaderDate(){
   month=month.charAt(0).toUpperCase()+month.slice(1);
   document.getElementById('header-date').textContent = wd+', '+d.getDate()+' '+month;
 }
+var WEATHER_CACHE_KEY='tochka-weather-krasnoyarsk-v1';
+var weatherRetryTimer=null;
+function formatWeatherTemp(t){return (t>0?'+':'')+Math.round(t)+'°';}
+function showCachedWeather(){
+  var el=document.getElementById('header-weather'); if(!el)return false;
+  try{
+    var cached=JSON.parse(localStorage.getItem(WEATHER_CACHE_KEY)||'null');
+    if(cached&&Number.isFinite(Number(cached.temp))){
+      el.textContent=formatWeatherTemp(Number(cached.temp));
+      el.title='Красноярск: '+el.textContent;
+      return true;
+    }
+  }catch(e){console.warn('Weather cache unavailable',e);}
+  return false;
+}
 async function loadHeaderWeather(){
   var el=document.getElementById('header-weather'); if(!el)return;
+  // Never blank a known temperature just because the network is temporarily unavailable.
+  showCachedWeather();
   try{
-    var res=await fetch('https://api.open-meteo.com/v1/forecast?latitude=56.0153&longitude=92.8932&current=temperature_2m&timezone=Asia%2FKrasnoyarsk',{cache:'no-store'});
+    var controller=typeof AbortController!=='undefined'?new AbortController():null;
+    var timeout=controller?setTimeout(function(){controller.abort();},8000):null;
+    var res=await fetch('https://api.open-meteo.com/v1/forecast?latitude=56.0153&longitude=92.8932&current=temperature_2m&timezone=Asia%2FKrasnoyarsk',{
+      cache:'no-store',
+      signal:controller?controller.signal:undefined
+    });
+    if(timeout)clearTimeout(timeout);
     if(!res.ok)throw new Error('weather '+res.status);
     var data=await res.json();
     var t=data&&data.current&&Number(data.current.temperature_2m);
     if(!Number.isFinite(t))throw new Error('weather data');
-    el.textContent=(t>0?'+':'')+Math.round(t)+'°';
+    el.textContent=formatWeatherTemp(t);
     el.title='Красноярск: '+el.textContent;
-  }catch(e){ console.warn('Weather unavailable',e); el.textContent=''; }
+    try{localStorage.setItem(WEATHER_CACHE_KEY,JSON.stringify({temp:t,updatedAt:Date.now()}));}catch(e){console.warn(e);}
+    if(weatherRetryTimer){clearTimeout(weatherRetryTimer);weatherRetryTimer=null;}
+  }catch(e){
+    console.warn('Weather unavailable',e);
+    // Keep the cached value visible and retry quietly instead of erasing the header.
+    if(!weatherRetryTimer)weatherRetryTimer=setTimeout(function(){weatherRetryTimer=null;loadHeaderWeather();},60000);
+  }
 }
 function renderTabbar(){
   var btns = document.querySelectorAll('.tab-btn');
@@ -2422,6 +2451,7 @@ window.tochkaFirebaseSignIn = async function(idToken){
 
 function boot(){
   renderHeaderDate();
+  showCachedWeather();
   loadHeaderWeather();
   setInterval(loadHeaderWeather, 15*60*1000);
   document.getElementById('main-content').innerHTML = '<div class="card empty-state">Проверяем вход…</div>';
