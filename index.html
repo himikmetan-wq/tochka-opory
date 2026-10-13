@@ -1611,6 +1611,39 @@ async function loadChampion(){
       try{localStorage.setItem(repairKey,'1');}catch(e){console.warn(e);}
     }
   }
+  // One-time correction requested after a temporary Champion item was removed.
+  // Preserve the eight genuinely earned days through yesterday; today remains
+  // open and becomes day 9 only when the current block is completed.
+  var repair8Key='champion-streak-history-v3-eight-days-2026-10-13';
+  var repair8Done=false;
+  try{repair8Done=!!localStorage.getItem(repair8Key);}catch(e){console.warn(e);}
+  if(!repair8Done){
+    var repair8Ok=true;
+    var currentChampionIds=items.map(function(it){return it.id;});
+    for(var repair8N=1;repair8N<=8;repair8N++){
+      var repair8Date=fmtKey(addDays(todayDate(),-repair8N));
+      var repair8Rec=log[repair8Date];
+      if(!repair8Rec){ repair8Ok=false; continue; }
+      var repair8DoneIds=Array.isArray(repair8Rec)?repair8Rec.slice():(repair8Rec.doneIds||[]).slice();
+      var repair8Required=currentChampionIds.filter(function(id){return repair8DoneIds.indexOf(id)!==-1;});
+      if(!repair8Required.length){ repair8Ok=false; continue; }
+      log[repair8Date]={doneIds:repair8DoneIds,requiredIds:repair8Required.slice()};
+      try{
+        await setDoc(_fsDocRef('championLog',repair8Date),{
+          date:repair8Date,
+          doneIds:repair8DoneIds,
+          requiredIds:repair8Required.slice(),
+          updatedAt:nowISO()
+        },{merge:true});
+      }catch(e){
+        repair8Ok=false;
+        console.warn('Champion 8-day repair failed for '+repair8Date,e);
+      }
+    }
+    if(repair8Ok){
+      try{localStorage.setItem(repair8Key,'1');}catch(e){console.warn(e);}
+    }
+  }
   var streakInfo = computeChampionStreak(items, log);
   state.champion = {
     loading:false, items:items, log:log,
