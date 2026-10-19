@@ -2514,21 +2514,16 @@ function boot(){
     themeInput.onchange = function(){ saveTheme(themeInput.checked ? 'dark' : 'light'); };
     var logout = document.createElement('button'); logout.textContent = 'Выйти';
     logout.onclick = function(){ signOut(_auth).catch(function(e){ console.error(e); toast('Не удалось выйти'); }); };
-    var projectsWrap=document.createElement('div'); projectsWrap.className='projects-menu-wrap';
-    var projectsBtn=document.createElement('button'); projectsBtn.className='projects-menu-btn'; projectsBtn.type='button'; projectsBtn.title='Мои проекты'; projectsBtn.setAttribute('aria-label','Мои проекты'); projectsBtn.setAttribute('aria-expanded','false');
-    projectsBtn.innerHTML='<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="2"/><rect x="14" y="3" width="7" height="7" rx="2"/><rect x="3" y="14" width="7" height="7" rx="2"/><rect x="14" y="14" width="7" height="7" rx="2"/></svg>';
-    var projectsMenu=document.createElement('div'); projectsMenu.className='projects-menu';
-    projectsMenu.innerHTML='<a href="https://himikmetan-wq.github.io/voodoo-calendar/" target="_blank" rel="noopener"><span class="project-logo calendar">V</span><span>Вуду расписание</span></a>'
-      +'<a href="https://himikmetan-wq.github.io/Content/" target="_blank" rel="noopener"><span class="project-logo posts">P</span><span>Вуду посты</span></a>'
-      +'<a href="https://himikmetan-wq.github.io/void-merge/index.html" target="_blank" rel="noopener"><span class="project-logo games">◈</span><span>Игроцех</span></a>'
-      +'<a href="https://himikmetan-wq.github.io/tochka-opory/" target="_blank" rel="noopener"><span class="project-logo anchor">⌖</span><span>Точка опоры</span></a>';
-    projectsBtn.onclick=function(e){e.stopPropagation();var open=projectsMenu.classList.toggle('open');projectsBtn.setAttribute('aria-expanded',open?'true':'false');};
-    projectsMenu.onclick=function(e){e.stopPropagation();};
-    document.addEventListener('click',function(){projectsMenu.classList.remove('open');projectsBtn.setAttribute('aria-expanded','false');},{once:false});
-    projectsWrap.append(projectsBtn,projectsMenu);
+    var apkDownload=document.createElement('a');
+    apkDownload.className='projects-menu-btn';
+    apkDownload.href='https://raw.githubusercontent.com/himikmetan-wq/tochka-opory/main/tochka-opory.apk?download=1';
+    apkDownload.title='Скачать Точку опоры APK';
+    apkDownload.setAttribute('aria-label','Скачать Точку опоры APK');
+    apkDownload.setAttribute('download','tochka-opory.apk');
+    apkDownload.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 20h14"/></svg>';
     var quickLaunch=document.createElement('button'); quickLaunch.className='quick-launch-btn'; quickLaunch.textContent='B'; quickLaunch.title='Настроить быстрый запуск ↑↑'; quickLaunch.setAttribute('aria-label','Настроить быстрый запуск');
     quickLaunch.onclick=function(){ if(window.TochkaAndroid&&typeof window.TochkaAndroid.openQuickLaunchSettings==='function') window.TochkaAndroid.openQuickLaunchSettings(); else toast('Быстрый запуск доступен в Android-приложении'); };
-    control.append(name, themeLabel, projectsWrap, quickLaunch, logout);
+    control.append(name, themeLabel, apkDownload, quickLaunch, logout);
     renderTabbar();
     try{
       var initialLoad=switchTab('summary');
